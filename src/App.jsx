@@ -8,6 +8,7 @@ const VIEWS = [
   ['transactions', 'Transactions', 'list'],
   ['categories', 'Categories', 'pie'],
   ['recurring', 'Recurring', 'repeat'],
+  ['cashflow', 'Cash Flow', 'flow'],
   ['networth', 'Net Worth', 'trend'],
   ['accounts', 'Accounts', 'card'],
   ['income', 'Income & Savings', 'coin'],
@@ -81,6 +82,7 @@ function Icon({ name }) {
     upload: <><path d="M12 16V4m0 0l-4 4m4-4l4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>,
     repeat: <><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>,
     trend: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+    flow: <><path d="M4 6h4c4 0 4 6 8 6h4" /><path d="M4 12h4" /><path d="M4 18h4c4 0 4-6 8-6" /><path d="M17 3l4 3-4 3M17 15l4 3-4 3" /></>,
     wand: <><path d="M15 4V2m0 14v-2m-7-7H6m14 0h-2m-1.8-4.2l1.4-1.4M8.4 8.4L7 7m9.2 1.4l1.4-1.4M4 20l8-8" /></>,
   };
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
@@ -266,6 +268,53 @@ function IncomeView({ all, setView, setTxFilters }) {
   const invested = all.filter((t) => t.type === 'investment');
   const year = new Date().getFullYear();
   return <div className="view"><div className="stats"><Stat label="YTD Income" value={dollar(sum(income(filterByDate(all, 'ytd')), (t) => t.amount))} note={String(year)} tone="green" /><Stat label={`${year - 1} Income`} value={dollar(sum(income(filterByDate(all, String(year - 1))), (t) => t.amount))} note="full year" tone="green" /><Stat label="YTD Expenses" value={dollar(sum(expenses(filterByDate(all, 'ytd')), (t) => Math.abs(t.amount)))} note="cash out" tone="red" /><Stat label="Invested" value={dollar(sum(invested, (t) => Math.abs(t.amount)))} note="brokerage transfers" tone="purple" onClick={() => { setTxFilters({ search: '', account: '', category: '', type: 'investment' }); setView('transactions'); }} /></div><Panel title="Monthly Breakdown"><div className="table"><div><b>Month</b><b>Income</b><b>Expenses</b><b>Invested</b><b>Net</b></div>{monthRows.map((r) => <div key={r.key}><span>{labelFor(r.key)}</span><span className="good">{r.inc ? dollar(r.inc) : '-'}</span><span className="bad">{r.exp ? `-${dollar(r.exp)}` : '-'}</span><span className="purple">{r.inv ? `-${dollar(r.inv)}` : '-'}</span><span className={r.inc - r.exp >= 0 ? 'good' : 'bad'}>{r.inc - r.exp >= 0 ? '+' : '-'}{dollar(Math.abs(r.inc - r.exp))}</span></div>)}</div></Panel></div>;
+}
+
+// Hand-rolled SVG Sankey: income (or total spend) on the left flowing into
+// spending categories and savings on the right. No chart library needed.
+function CashFlow({ rows, filter, setView, setTxFilters }) {
+  const inc = sum(income(rows), (t) => t.amount);
+  const catRows = cats(rows);
+  const spent = catRows.reduce((s, [, v]) => s + v, 0);
+  if (!spent && !inc) return <div className="view"><Panel title="Cash Flow"><div className="empty">No income or spending in this period.</div></Panel></div>;
+  const top = catRows.slice(0, 9);
+  const rest = catRows.slice(9).reduce((s, [, v]) => s + v, 0);
+  const right = top.map(([cat, val]) => ({ label: cat, val, color: CAT_COLORS[cat] || CAT_COLORS.Other, cat }));
+  if (rest > 0) right.push({ label: 'Other categories', val: rest, color: CAT_COLORS.Other });
+  const savings = inc - spent;
+  if (inc > 0 && savings > 0) right.push({ label: 'Saved', val: savings, color: '#10b981' });
+  const leftTotal = right.reduce((s, r) => s + r.val, 0);
+  const leftLabel = inc > 0 ? 'Income' : 'Spending';
+  const GAP = 10, W = 760, LX = 150, RX = W - 210, NODE = 14;
+  const H = Math.max(280, right.length * 46);
+  const scale = (H - GAP * (right.length - 1)) / leftTotal;
+  let ly = (H - leftTotal * scale) / 2, ry = 0;
+  const ribbons = right.map((r) => {
+    const h = r.val * scale;
+    const rib = { ...r, ly0: ly, ly1: ly + h, ry0: ry, ry1: ry + h };
+    ly += h; ry += h + GAP;
+    return rib;
+  });
+  const mid = (LX + NODE + RX) / 2;
+  const pick = (r) => { if (r.cat) { setTxFilters({ search: '', account: '', category: r.cat, type: 'expense' }); setView('transactions'); } };
+  return <div className="view">
+    <div className="stats small">
+      <Stat label={inc > 0 ? 'Income' : 'Total spent'} value={dollar(inc > 0 ? inc : spent)} note={labelFor(filter)} tone={inc > 0 ? 'green' : 'red'} />
+      <Stat label="Spent" value={dollar(spent)} note={inc > 0 ? `${(spent / inc * 100).toFixed(0)}% of income` : 'all categories'} tone="red" />
+      <Stat label="Saved" value={inc > 0 ? dollar(Math.max(0, savings)) : '—'} note={inc > 0 && savings > 0 ? `${(savings / inc * 100).toFixed(0)}% savings rate` : inc > 0 ? 'spent more than earned' : 'no income data in period'} tone={savings >= 0 ? 'green' : 'red'} />
+    </div>
+    <Panel title={`Where the Money Went — ${labelFor(filter)}`}>
+      <div className="sankey-wrap"><svg viewBox={`0 0 ${W} ${H}`} className="sankey">
+        <rect x={LX} y={(H - leftTotal * scale) / 2} width={NODE} height={leftTotal * scale} rx="4" fill="#334155" />
+        <text x={LX - 10} y={H / 2} textAnchor="end" className="sankey-label-main">{leftLabel}</text>
+        {ribbons.map((r) => <g key={r.label} className={r.cat ? 'sankey-flow clickable' : 'sankey-flow'} onClick={() => pick(r)}>
+          <path d={`M ${LX + NODE} ${r.ly0} C ${mid} ${r.ly0} ${mid} ${r.ry0} ${RX} ${r.ry0} L ${RX} ${r.ry1} C ${mid} ${r.ry1} ${mid} ${r.ly1} ${LX + NODE} ${r.ly1} Z`} fill={r.color} opacity="0.45" />
+          <rect x={RX} y={r.ry0} width={NODE} height={Math.max(2, r.ry1 - r.ry0)} rx="3" fill={r.color} />
+          <text x={RX + NODE + 8} y={(r.ry0 + r.ry1) / 2 + 4} className="sankey-label">{r.label} · {dollar(r.val)}</text>
+        </g>)}
+      </svg></div>
+    </Panel>
+  </div>;
 }
 
 function NetWorth({ history, accounts }) {
@@ -464,6 +513,7 @@ export default function App() {
     {!showEmpty && view === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} onCategorize={categorize} />}
     {!showEmpty && view === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}
     {!showEmpty && view === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}
+    {!showEmpty && view === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}
     {!showEmpty && view === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}
     {!showEmpty && view === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} />}
     {!showEmpty && view === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}

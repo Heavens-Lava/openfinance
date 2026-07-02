@@ -19,6 +19,8 @@ Every budgeting app wants you to hand over your bank credentials to a third-part
 - **Editable categories** — reassign any transaction's category inline; your corrections persist in the browser and update every chart and total
 - **Custom rules** — your own "merchant contains X → category Y" mappings, applied to all past and future imports with live match counts
 - **Net-worth tracking** — month-end cash balances charted over time, extracted from the running balance column in your statements
+- **Cash-flow Sankey** — income flowing into categories and savings, drawn in dependency-free SVG, clickable to drill in
+- **Spending heatmap** — GitHub-style daily grid of the last 6 months; click any day to see its transactions
 - **Budget goals** — set monthly targets per category or merchant keyword, tracked month by month
 - **Multi-account** — import as many accounts as you like; balances are read from the statements when present
 - **Demo mode** — one click loads synthetic data so you can explore before importing anything
@@ -56,7 +58,6 @@ Those files load automatically when the app starts with no imported data.
 
 ## Roadmap
 
-- Sankey cash-flow diagram and calendar heatmap
 - IndexedDB storage for very large histories
 - OFX/QFX import
 
