@@ -128,6 +128,40 @@ function CategoryBars({ rows }) {
   return <div className="cat-bars">{rows.map(([cat, amount]) => <div key={cat} className="cat-row"><div><i style={{ background: CAT_COLORS[cat] || CAT_COLORS.Other }} /><b>{cat}</b></div><strong>{dollar(amount)}</strong><span><em style={{ width: `${amount / total * 100}%`, background: CAT_COLORS[cat] || CAT_COLORS.Other }} /></span></div>)}</div>;
 }
 
+// GitHub-style daily spending heatmap, last ~6 months. Click a day to drill in.
+function Heatmap({ all, setFilter, setTxFilters, setView }) {
+  const today = new Date();
+  const daily = new Map();
+  for (const t of expenses(all)) {
+    const k = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}-${String(t.date.getDate()).padStart(2, '0')}`;
+    daily.set(k, (daily.get(k) || 0) + Math.abs(t.amount));
+  }
+  const nonzero = [...daily.values()].sort((a, b) => a - b);
+  const q = (p) => nonzero[Math.floor(p * (nonzero.length - 1))] || 1;
+  const buckets = [q(0.25), q(0.5), q(0.75), q(0.92)];
+  const SHADES = ['#f1f5f9', '#fecaca', '#f87171', '#ef4444', '#991b1b'];
+  const level = (v) => (!v ? 0 : Math.min(4, 1 + buckets.filter((b) => v > b).length));
+  const weeks = [];
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() - 25 * 7);
+  for (let w = 0; w < 26; w++) {
+    const col = [];
+    for (let d = 0; d < 7; d++) {
+      const cur = new Date(start);
+      cur.setDate(start.getDate() + w * 7 + d);
+      if (cur > today) break;
+      const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+      col.push({ iso, label: fmtDate(cur), value: daily.get(iso) || 0 });
+    }
+    weeks.push(col);
+  }
+  return <div className="heatmap">{weeks.map((col, i) => <div className="hm-col" key={i}>{col.map((c) => <button
+    key={c.iso} className="hm-cell" title={`${c.label}: ${dollar(c.value)}`}
+    style={{ background: SHADES[level(c.value)] }}
+    onClick={() => { setFilter(`custom:${c.iso}:${c.iso}`); setTxFilters({ search: '', account: '', category: '', type: 'expense' }); setView('transactions'); }}
+  />)}</div>)}</div>;
+}
+
 function Dashboard({ all, rows, balances, accounts, setView, setFilter, setTxFilters, filter }) {
   const exp = expenses(rows);
   const inc = income(rows);
@@ -151,6 +185,7 @@ function Dashboard({ all, rows, balances, accounts, setView, setFilter, setTxFil
       <Stat label="Top Category" value={top?.[0] || 'None'} note={top ? `${dollar(top[1])} spent` : 'by spending'} onClick={() => { if (top) { setTxFilters({ ...reset, category: top[0], type: 'expense' }); setView('transactions'); } }} />
     </div>
     <div className="grid-main"><Panel title="Monthly Spending"><Bars rows={monthly} onPick={(r) => { setFilter(r.key); setTxFilters(reset); setView('transactions'); }} /></Panel><Panel title="By Category"><CategoryBars rows={categoryRows.slice(0, 8)} /></Panel></div>
+    <Panel title="Daily Spending — Last 6 Months"><Heatmap all={all} setFilter={setFilter} setTxFilters={setTxFilters} setView={setView} /></Panel>
     <Panel title="Recent Transactions" action={<button onClick={() => setView('transactions')}>View all</button>}><TransactionsList rows={rows.slice(0, 12)} /></Panel>
   </div>;
 }
