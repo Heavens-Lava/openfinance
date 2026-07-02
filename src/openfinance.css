@@ -15,6 +15,9 @@
 .privacy-banner { font-size: 13px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; margin: 14px 0; }
 .save-error { font-size: 13px; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; margin: 14px 0; }
 
+.cat-select { border: none; background: transparent; font: inherit; font-size: inherit; color: inherit; cursor: pointer; padding: 0; max-width: 140px; }
+.cat-select:hover { color: #2563eb; }
+
 .link-btn { border: none; background: none; color: #2563eb; font-size: 12px; cursor: pointer; padding: 4px 8px; }
 .link-btn:hover { text-decoration: underline; }
 

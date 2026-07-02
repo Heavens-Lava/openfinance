@@ -27,3 +27,18 @@ export function saveStoredFiles(files) {
 export function clearStoredFiles() {
   localStorage.removeItem(KEY);
 }
+
+const OVERRIDES_KEY = 'of_cat_overrides_v1';
+
+export function loadCategoryOverrides() {
+  try {
+    const map = JSON.parse(localStorage.getItem(OVERRIDES_KEY) || '{}');
+    return map && typeof map === 'object' ? map : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCategoryOverrides(map) {
+  try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map)); } catch { /* full — overrides just won't persist */ }
+}

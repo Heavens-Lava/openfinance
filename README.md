@@ -16,6 +16,7 @@ Every budgeting app wants you to hand over your bank credentials to a third-part
 - **Custom date ranges** — presets (this month, YTD, last 3/6 months) or pick any from/to dates
 - **Recurring-charge detection** — finds subscriptions automatically (3+ near-identical charges across 3+ months) and shows the monthly and yearly cost of keeping them
 - **Transactions browser** — search, filter by account/category/type, paginate, and export the filtered view back to CSV
+- **Editable categories** — reassign any transaction's category inline; your corrections persist in the browser and update every chart and total
 - **Budget goals** — set monthly targets per category or merchant keyword, tracked month by month
 - **Multi-account** — import as many accounts as you like; balances are read from the statements when present
 - **Demo mode** — one click loads synthetic data so you can explore before importing anything
@@ -53,7 +54,6 @@ Those files load automatically when the app starts with no imported data.
 
 ## Roadmap
 
-- Editable per-transaction categories with persistent overrides
 - Custom categorization rules UI (your own keyword → category mappings)
 - Net-worth tracking across statements over time
 - Sankey cash-flow diagram and calendar heatmap

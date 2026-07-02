@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, income, loadLocalManifest, parseAll } from './lib/finance.js';
-import { loadStoredFiles, saveStoredFiles } from './lib/storage.js';
+import { loadCategoryOverrides, loadStoredFiles, saveCategoryOverrides, saveStoredFiles } from './lib/storage.js';
 import { demoFiles } from './lib/demo.js';
 
 const VIEWS = [
@@ -99,11 +99,16 @@ function Panel({ title, action, children }) {
   return <section className="panel"><header><h2>{title}</h2>{action}</header>{children}</section>;
 }
 
-function TransactionsList({ rows }) {
+function TransactionsList({ rows, onCategorize }) {
   if (!rows.length) return <div className="empty">No transactions for this period.</div>;
+  const catOptions = Object.keys(CAT_COLORS);
   return <div className="tx-list">{rows.map((t) => <div className="tx" key={t.id}>
     <span className="date">{fmtDate(t.date)}</span>
-    <div className="merchant"><b>{t.merchant || 'Unknown merchant'}</b><small><i style={{ background: CAT_COLORS[t.category] || CAT_COLORS.Other }} />{t.category}</small></div>
+    <div className="merchant"><b>{t.merchant || 'Unknown merchant'}</b><small><i style={{ background: CAT_COLORS[t.category] || CAT_COLORS.Other }} />
+      {onCategorize
+        ? <select className="cat-select" title="Change category" value={t.category} onChange={(e) => onCategorize(t.id, e.target.value)}>{(catOptions.includes(t.category) ? catOptions : [t.category, ...catOptions]).map((c) => <option key={c}>{c}</option>)}</select>
+        : t.category}
+    </small></div>
     <span className="account">{t.accountName}</span>
     <strong className={t.amount < 0 ? 'bad' : 'good'}>{t.amount < 0 ? '-' : '+'}{dollar(t.amount)}</strong>
   </div>)}</div>;
@@ -158,13 +163,13 @@ function exportCsv(rows) {
   URL.revokeObjectURL(a.href);
 }
 
-function Transactions({ rows, filters, setFilters, accounts }) {
+function Transactions({ rows, filters, setFilters, accounts, onCategorize }) {
   const [page, setPage] = useState(0);
   const filtered = rows.filter((t) => (!filters.search || (t.merchant || '').toLowerCase().includes(filters.search.toLowerCase())) && (!filters.account || t.account === filters.account) && (!filters.category || t.category === filters.category) && (!filters.type || t.type === filters.type));
   const catsList = [...new Set(rows.map((t) => t.category))].sort();
   const pageRows = filtered.slice(page * 50, page * 50 + 50);
   useEffect(() => setPage(0), [filters, rows]);
-  return <div className="view"><section className="filters"><input placeholder="Search merchant..." value={filters.search} onChange={(e) => setFilters({ search: e.target.value })} /><select value={filters.account} onChange={(e) => setFilters({ account: e.target.value })}><option value="">All Accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><select value={filters.category} onChange={(e) => setFilters({ category: e.target.value })}><option value="">All Categories</option>{catsList.map((c) => <option key={c}>{c}</option>)}</select><select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })}><option value="">All Types</option><option value="expense">Expenses</option><option value="income">Income</option><option value="investment">Investments</option><option value="payment">Payments</option></select></section><Panel title={`${filtered.length.toLocaleString()} Transactions`} action={<button onClick={() => exportCsv(filtered)}>Export CSV</button>}><TransactionsList rows={pageRows} /><div className="pager"><span>Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / 50))}</span><div><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</button><button disabled={page >= Math.ceil(filtered.length / 50) - 1} onClick={() => setPage(page + 1)}>Next</button></div></div></Panel></div>;
+  return <div className="view"><section className="filters"><input placeholder="Search merchant..." value={filters.search} onChange={(e) => setFilters({ search: e.target.value })} /><select value={filters.account} onChange={(e) => setFilters({ account: e.target.value })}><option value="">All Accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><select value={filters.category} onChange={(e) => setFilters({ category: e.target.value })}><option value="">All Categories</option>{catsList.map((c) => <option key={c}>{c}</option>)}</select><select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })}><option value="">All Types</option><option value="expense">Expenses</option><option value="income">Income</option><option value="investment">Investments</option><option value="payment">Payments</option></select></section><Panel title={`${filtered.length.toLocaleString()} Transactions`} action={<button onClick={() => exportCsv(filtered)}>Export CSV</button>}><TransactionsList rows={pageRows} onCategorize={onCategorize} /><div className="pager"><span>Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / 50))}</span><div><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</button><button disabled={page >= Math.ceil(filtered.length / 50) - 1} onClick={() => setPage(page + 1)}>Next</button></div></div></Panel></div>;
 }
 
 function Categories({ rows, setView, setTxFilters }) {
@@ -261,14 +266,16 @@ function Goals({ all }) {
   return <div className="view"><section className="goal-head"><div><h1>Monthly Goals</h1><p>Budgets per category or merchant. Saved in this browser.</p></div><div className="goal-controls"><select value={month} onChange={(e) => setMonth(e.target.value)}>{months(all).slice(0, 18).map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</select><button className="add-btn" onClick={addGoal}>+ Add goal</button></div></section><div className="stats small"><Stat label="Income" value={dollar(sum(income(txs), (t) => t.amount))} note={labelFor(month)} tone="green" /><Stat label="Spent" value={dollar(sum(expenses(txs), (t) => Math.abs(t.amount)))} note="total expenses" tone="red" /><Stat label="Net Cash Flow" value={`${sum(income(txs), (t) => t.amount) - sum(expenses(txs), (t) => Math.abs(t.amount)) >= 0 ? '+' : '-'}${dollar(Math.abs(sum(income(txs), (t) => t.amount) - sum(expenses(txs), (t) => Math.abs(t.amount))))}`} note="income minus expenses" /></div><Panel title="Goal Tracker">{!goals.length ? <div className="empty">No goals yet. Click "+ Add goal" to set a budget for any category or merchant.</div> : <div className="goals">{goals.map((g) => { const value = actual(g); const pct = g.target > 0 ? Math.min(100, value / g.target * 100) : 0; return <div key={g.id} className="goal"><div><i style={{ background: g.color }} /><b>{g.label}</b></div><button onClick={() => edit(g)}>Target {dollar(g.target)}</button><strong className={value > g.target ? 'bad' : ''}>{dollar(value)}</strong><span><em style={{ width: `${pct}%`, background: value > g.target ? '#ef4444' : g.color }} /></span></div>; })}</div>}</Panel></div>;
 }
 
-let fileSeq = 0;
+// Stable id from the filename so re-importing an updated export replaces the
+// old one and per-transaction category overrides keep pointing at real rows.
+const fileId = (name) => `f-${name.toLowerCase().replace(/\.csv$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
 function ImportView({ files, setFiles, saveError }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const addFiles = async (fileList) => {
-    const added = await Promise.all([...fileList].filter((f) => /\.csv$/i.test(f.name)).map(async (f) => ({ id: `f${Date.now()}-${fileSeq++}`, name: f.name, text: await f.text() })));
-    if (added.length) setFiles([...files.filter((f) => !f.demo), ...added]);
+    const added = await Promise.all([...fileList].filter((f) => /\.csv$/i.test(f.name)).map(async (f) => ({ id: fileId(f.name), name: f.name, text: await f.text() })));
+    if (added.length) setFiles([...files.filter((f) => !f.demo && !added.some((a) => a.id === f.id)), ...added]);
   };
   const loadDemo = () => setFiles(demoFiles().map((f) => ({ ...f, demo: true })));
   const { accounts, transactions } = useMemo(() => parseAll(files), [files]);
@@ -314,23 +321,44 @@ export default function App() {
     loadLocalManifest().then((local) => { if (local?.length) setFilesRaw((prev) => (prev.length ? prev : local)); });
   }, []);
   const setFiles = (next) => { setFilesRaw(next); setSaveError(saveStoredFiles(next)); };
+  const [catOverrides, setCatOverrides] = useState(loadCategoryOverrides);
+  const categorize = (id, category) => setCatOverrides((prev) => {
+    const next = { ...prev, [id]: category };
+    saveCategoryOverrides(next);
+    return next;
+  });
   const data = useMemo(() => parseAll(files), [files]);
-  const filtered = useMemo(() => filterByDate(data.transactions, filter), [data.transactions, filter]);
-  const monthList = useMemo(() => months(data.transactions), [data.transactions]);
+  // User re-categorizations layer over the parsed data; type follows category
+  // so totals (income/expenses/investments) stay consistent.
+  const transactions = useMemo(() => {
+    if (!Object.keys(catOverrides).length) return data.transactions;
+    return data.transactions.map((t) => {
+      const c = catOverrides[t.id];
+      if (!c || c === t.category) return t;
+      let type = t.type;
+      if (c === 'Income') type = 'income';
+      else if (c === 'Payment/Transfer') type = 'payment';
+      else if (c === 'Investments') type = 'investment';
+      else if (t.amount < 0) type = 'expense';
+      return { ...t, category: c, type };
+    });
+  }, [data.transactions, catOverrides]);
+  const filtered = useMemo(() => filterByDate(transactions, filter), [transactions, filter]);
+  const monthList = useMemo(() => months(transactions), [transactions]);
   const setTxFilters = (patch) => setTxFiltersValue((prev) => ({ ...prev, ...patch }));
-  const status = files.length ? `${data.transactions.length.toLocaleString()} transactions · ${data.accounts.length} accounts` : 'No data imported yet';
+  const status = files.length ? `${transactions.length.toLocaleString()} transactions · ${data.accounts.length} accounts` : 'No data imported yet';
   const custom = filter.startsWith('custom:') ? filter.split(':') : null;
   const setCustom = (from, to) => setFilter(from || to ? `custom:${from || ''}:${to || ''}` : 'ytd');
   const showEmpty = !files.length && view !== 'import';
   return <div className="app"><Sidebar view={view} setView={setView} status={status} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === view)?.[1]}</h1><p>Private by design — all analysis happens in your browser</p></div><div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div></header><div className="content">
     {showEmpty && <div className="welcome"><h2>Welcome to OpenFinance</h2><p>A private, local-first personal finance dashboard. Import your bank CSV exports — nothing ever leaves your browser.</p><button className="add-btn" onClick={() => setView('import')}>Import your data</button></div>}
-    {!showEmpty && view === 'dashboard' && <Dashboard all={data.transactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}
-    {!showEmpty && view === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} />}
+    {!showEmpty && view === 'dashboard' && <Dashboard all={transactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}
+    {!showEmpty && view === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} onCategorize={categorize} />}
     {!showEmpty && view === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}
-    {!showEmpty && view === 'recurring' && <Recurring all={data.transactions} setView={setView} setTxFilters={setTxFilters} />}
+    {!showEmpty && view === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}
     {!showEmpty && view === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}
-    {!showEmpty && view === 'income' && <IncomeView all={data.transactions} setView={setView} setTxFilters={setTxFilters} />}
-    {!showEmpty && view === 'goals' && <Goals all={data.transactions} />}
+    {!showEmpty && view === 'income' && <IncomeView all={transactions} setView={setView} setTxFilters={setTxFilters} />}
+    {!showEmpty && view === 'goals' && <Goals all={transactions} />}
     {view === 'import' && <ImportView files={files} setFiles={setFiles} saveError={saveError} />}
   </div></main></div>;
 }
