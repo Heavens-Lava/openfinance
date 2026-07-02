@@ -93,6 +93,21 @@ export function normalizeCategory(raw) {
   return raw || 'Other';
 }
 
+// Month-end balances per account, for net-worth tracking. Keyed YYYY-MM,
+// keeping the balance from the latest dated row within each month.
+function recordBalanceHistory(rows, dateField, balField, account, history) {
+  const byMonth = {};
+  for (const r of rows) {
+    if (!r[balField] || parseAmt(r[balField]) === 0) continue;
+    const d = parseDate(r[dateField]);
+    if (!d) continue;
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!byMonth[ym] || d.getTime() > byMonth[ym].t) byMonth[ym] = { t: d.getTime(), bal: parseAmt(r[balField]) };
+  }
+  const months = Object.keys(byMonth);
+  if (months.length) history[account.id] = Object.fromEntries(months.map((m) => [m, byMonth[m].bal]));
+}
+
 // Balance from the most recent dated row — export order (newest-first vs
 // oldest-first) varies by bank and download settings, so don't trust row 0.
 function latestBalanceRow(rows, dateField) {
@@ -171,7 +186,7 @@ function makeTx(date, merchant, rawCat, amount, account, meta = {}) {
   };
 }
 
-function parseRows(rows, account, balances) {
+function parseRows(rows, account, balances, history) {
   if (!rows.length) return [];
   const format = account.format;
   if (format === 'apple') {
@@ -193,6 +208,7 @@ function parseRows(rows, account, balances) {
   if (format === 'chase-checking') {
     const balRow = latestBalanceRow(rows, 'Posting Date');
     if (balRow) balances[account.id] = parseAmt(balRow.Balance);
+    recordBalanceHistory(rows, 'Posting Date', 'Balance', account, history);
     return rows.filter((r) => r['Posting Date']).map((r) => {
       const merchant = r.Description || '';
       return makeTx(parseDate(r['Posting Date']), merchant, guessCategory(merchant), parseAmt(r.Amount), account, { sourceType: r.Type || '' });
@@ -205,6 +221,7 @@ function parseRows(rows, account, balances) {
     const validRows = rows.filter((r) => r['Posting Date']);
     const balRow = latestBalanceRow(validRows, 'Posting Date');
     if (balRow) balances[account.id] = parseAmt(balRow.Balance);
+    recordBalanceHistory(validRows, 'Posting Date', 'Balance', account, history);
     return validRows.map((r) => {
       const desc = r.Description || '';
       const rawCat = String(r['Transaction Category'] || '').toLowerCase().trim();
@@ -222,6 +239,7 @@ function parseRows(rows, account, balances) {
     if (balK) {
       const balRow = latestBalanceRow(rows.map((r) => ({ ...r, Balance: r[balK] })), dateK);
       if (balRow) balances[account.id] = parseAmt(balRow.Balance);
+      recordBalanceHistory(rows, dateK, balK, account, history);
     }
     return rows.filter((r) => r[dateK]).map((r) => {
       const merchant = r[descK] || '';
@@ -251,6 +269,7 @@ function cleanName(fileName) {
 // files: [{ id, name, text }] -> { transactions, balances, accounts }
 export function parseAll(files) {
   const balances = {};
+  const balanceHistory = {};
   const accounts = [];
   const all = [];
   files.forEach((file, i) => {
@@ -266,7 +285,7 @@ export function parseAll(files) {
       format,
     };
     accounts.push(account);
-    all.push(...parseRows(rows, account, balances));
+    all.push(...parseRows(rows, account, balances, balanceHistory));
   });
   const transactions = all.filter((t) => t.date).sort((a, b) => b.date - a.date);
   // Identical same-day purchases (same account/merchant/amount) collide on id;
@@ -277,7 +296,7 @@ export function parseAll(files) {
     seen.set(t.id, n + 1);
     if (n > 0) t.id = `${t.id}-${n + 1}`;
   }
-  return { transactions, balances, accounts };
+  return { transactions, balances, balanceHistory, accounts };
 }
 
 // Optional dev convenience: put CSVs in public/local-data/ (gitignored) plus a

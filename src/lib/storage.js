@@ -42,3 +42,18 @@ export function loadCategoryOverrides() {
 export function saveCategoryOverrides(map) {
   try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map)); } catch { /* full — overrides just won't persist */ }
 }
+
+const RULES_KEY = 'of_rules_v1';
+
+export function loadRules() {
+  try {
+    const rules = JSON.parse(localStorage.getItem(RULES_KEY) || '[]');
+    return Array.isArray(rules) ? rules.filter((r) => r && r.keyword && r.category) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveRules(rules) {
+  try { localStorage.setItem(RULES_KEY, JSON.stringify(rules)); } catch { /* full — rules just won't persist */ }
+}

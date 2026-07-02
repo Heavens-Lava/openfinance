@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, income, loadLocalManifest, parseAll } from './lib/finance.js';
-import { loadCategoryOverrides, loadStoredFiles, saveCategoryOverrides, saveStoredFiles } from './lib/storage.js';
+import { loadCategoryOverrides, loadRules, loadStoredFiles, saveCategoryOverrides, saveRules, saveStoredFiles } from './lib/storage.js';
 import { demoFiles } from './lib/demo.js';
 
 const VIEWS = [
@@ -8,9 +8,11 @@ const VIEWS = [
   ['transactions', 'Transactions', 'list'],
   ['categories', 'Categories', 'pie'],
   ['recurring', 'Recurring', 'repeat'],
+  ['networth', 'Net Worth', 'trend'],
   ['accounts', 'Accounts', 'card'],
   ['income', 'Income & Savings', 'coin'],
   ['goals', 'Goals', 'target'],
+  ['rules', 'Rules', 'wand'],
   ['import', 'Import Data', 'upload'],
 ];
 
@@ -78,6 +80,8 @@ function Icon({ name }) {
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
     upload: <><path d="M12 16V4m0 0l-4 4m4-4l4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>,
     repeat: <><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>,
+    trend: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+    wand: <><path d="M15 4V2m0 14v-2m-7-7H6m14 0h-2m-1.8-4.2l1.4-1.4M8.4 8.4L7 7m9.2 1.4l1.4-1.4M4 20l8-8" /></>,
   };
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -229,6 +233,71 @@ function IncomeView({ all, setView, setTxFilters }) {
   return <div className="view"><div className="stats"><Stat label="YTD Income" value={dollar(sum(income(filterByDate(all, 'ytd')), (t) => t.amount))} note={String(year)} tone="green" /><Stat label={`${year - 1} Income`} value={dollar(sum(income(filterByDate(all, String(year - 1))), (t) => t.amount))} note="full year" tone="green" /><Stat label="YTD Expenses" value={dollar(sum(expenses(filterByDate(all, 'ytd')), (t) => Math.abs(t.amount)))} note="cash out" tone="red" /><Stat label="Invested" value={dollar(sum(invested, (t) => Math.abs(t.amount)))} note="brokerage transfers" tone="purple" onClick={() => { setTxFilters({ search: '', account: '', category: '', type: 'investment' }); setView('transactions'); }} /></div><Panel title="Monthly Breakdown"><div className="table"><div><b>Month</b><b>Income</b><b>Expenses</b><b>Invested</b><b>Net</b></div>{monthRows.map((r) => <div key={r.key}><span>{labelFor(r.key)}</span><span className="good">{r.inc ? dollar(r.inc) : '-'}</span><span className="bad">{r.exp ? `-${dollar(r.exp)}` : '-'}</span><span className="purple">{r.inv ? `-${dollar(r.inv)}` : '-'}</span><span className={r.inc - r.exp >= 0 ? 'good' : 'bad'}>{r.inc - r.exp >= 0 ? '+' : '-'}{dollar(Math.abs(r.inc - r.exp))}</span></div>)}</div></Panel></div>;
 }
 
+function NetWorth({ history, accounts }) {
+  const tracked = accounts.filter((a) => history[a.id] && Object.keys(history[a.id]).length);
+  if (!tracked.length) return <div className="view"><Panel title="Net Worth"><div className="empty">No balance history yet. Net worth needs statements with a running Balance column (most checking/savings exports have one — credit card exports usually don't).</div></Panel></div>;
+  const allMonths = [...new Set(tracked.flatMap((a) => Object.keys(history[a.id])))].sort();
+  // Credit balances are debt; carry each account's last known balance forward
+  // through months where it has no statement rows.
+  const carried = {};
+  const series = allMonths.map((m) => {
+    let total = 0;
+    for (const a of tracked) {
+      if (history[a.id][m] !== undefined) carried[a.id] = history[a.id][m];
+      const bal = carried[a.id] ?? 0;
+      total += a.type === 'credit_card' ? -Math.abs(bal) : bal;
+    }
+    return { key: m, label: `${MONTH_NAMES[Number(m.slice(5)) - 1]} '${m.slice(2, 4)}`, value: total };
+  });
+  const recent = series.slice(-13);
+  const current = series[series.length - 1]?.value ?? 0;
+  const prev = series[series.length - 2]?.value;
+  const change = prev !== undefined ? current - prev : null;
+  return <div className="view">
+    <div className="stats small">
+      <Stat label="Current net cash" value={dollar(current)} note={`across ${tracked.length} tracked ${tracked.length === 1 ? 'account' : 'accounts'}`} tone={current >= 0 ? 'green' : 'red'} />
+      <Stat label="1-month change" value={change === null ? '—' : `${change >= 0 ? '+' : '-'}${dollar(Math.abs(change))}`} note="vs. prior month-end" tone={change === null || change >= 0 ? 'green' : 'red'} />
+      <Stat label="Months tracked" value={String(series.length)} note="from statement balances" />
+    </div>
+    <Panel title="Month-End Net Cash"><Bars rows={recent} color="#14b8a6" /></Panel>
+    <Panel title="By Account (latest month-end)"><div className="tx-list">{tracked.map((a) => { const ms = Object.keys(history[a.id]).sort(); const last = ms[ms.length - 1]; const bal = history[a.id][last]; return <div className="tx" key={a.id}><span className="date">{last}</span><div className="merchant"><b>{a.name}</b><small><i style={{ background: a.color }} />{a.type.replace('_', ' ')}</small></div><span className="account" /><strong className={a.type === 'credit_card' ? 'bad' : 'good'}>{a.type === 'credit_card' ? '-' : ''}{dollar(bal)}</strong></div>; })}</div></Panel>
+  </div>;
+}
+
+function Rules({ rules, setRules, transactions }) {
+  const [keyword, setKeyword] = useState('');
+  const [category, setCategory] = useState('Food & Dining');
+  const matches = (kw) => transactions.filter((t) => (t.merchant || '').toLowerCase().includes(kw)).length;
+  const add = (e) => {
+    e.preventDefault();
+    const kw = keyword.trim().toLowerCase();
+    if (!kw) return;
+    setRules([...rules.filter((r) => r.keyword !== kw), { keyword: kw, category }]);
+    setKeyword('');
+  };
+  return <div className="view">
+    <section className="goal-head"><div><h1>Categorization Rules</h1><p>Your rules run before the built-in ones and apply to every import, past and future. Saved in this browser.</p></div></section>
+    <Panel title="Add a Rule">
+      <form className="rule-form" onSubmit={add}>
+        <input placeholder='Merchant contains… (e.g. "costco")' value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+        <span>→</span>
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>{Object.keys(CAT_COLORS).map((c) => <option key={c}>{c}</option>)}</select>
+        <button className="add-btn" type="submit" disabled={!keyword.trim()}>Add rule</button>
+        {keyword.trim() && <small>{matches(keyword.trim().toLowerCase())} matching transactions</small>}
+      </form>
+    </Panel>
+    <Panel title={`${rules.length} Active ${rules.length === 1 ? 'Rule' : 'Rules'}`}>
+      {!rules.length ? <div className="empty">No custom rules yet. Add one above — e.g. put your gym on "Health" or your landlord on "Bills & Utilities".</div> :
+        <div className="tx-list">{rules.map((r) => <div className="tx" key={r.keyword}>
+          <span className="date">{matches(r.keyword)} matches</span>
+          <div className="merchant"><b>"{r.keyword}"</b><small><i style={{ background: CAT_COLORS[r.category] || CAT_COLORS.Other }} />{r.category}</small></div>
+          <span className="account" />
+          <button className="link-btn" onClick={() => setRules(rules.filter((x) => x.keyword !== r.keyword))}>remove</button>
+        </div>)}</div>}
+    </Panel>
+  </div>;
+}
+
 const GOAL_COLORS = ['#14b8a6', '#f97316', '#ef4444', '#f59e0b', '#0ea5e9', '#8b5cf6'];
 
 function Goals({ all }) {
@@ -322,18 +391,22 @@ export default function App() {
   }, []);
   const setFiles = (next) => { setFilesRaw(next); setSaveError(saveStoredFiles(next)); };
   const [catOverrides, setCatOverrides] = useState(loadCategoryOverrides);
+  const [rules, setRulesRaw] = useState(loadRules);
+  const setRules = (next) => { setRulesRaw(next); saveRules(next); };
   const categorize = (id, category) => setCatOverrides((prev) => {
     const next = { ...prev, [id]: category };
     saveCategoryOverrides(next);
     return next;
   });
   const data = useMemo(() => parseAll(files), [files]);
-  // User re-categorizations layer over the parsed data; type follows category
-  // so totals (income/expenses/investments) stay consistent.
+  // User re-categorizations layer over the parsed data. Precedence: manual
+  // override > custom rule > parser guess. Type follows category so totals
+  // (income/expenses/investments) stay consistent.
   const transactions = useMemo(() => {
-    if (!Object.keys(catOverrides).length) return data.transactions;
+    if (!Object.keys(catOverrides).length && !rules.length) return data.transactions;
     return data.transactions.map((t) => {
-      const c = catOverrides[t.id];
+      const rule = rules.find((r) => (t.merchant || '').toLowerCase().includes(r.keyword));
+      const c = catOverrides[t.id] || rule?.category;
       if (!c || c === t.category) return t;
       let type = t.type;
       if (c === 'Income') type = 'income';
@@ -342,7 +415,7 @@ export default function App() {
       else if (t.amount < 0) type = 'expense';
       return { ...t, category: c, type };
     });
-  }, [data.transactions, catOverrides]);
+  }, [data.transactions, catOverrides, rules]);
   const filtered = useMemo(() => filterByDate(transactions, filter), [transactions, filter]);
   const monthList = useMemo(() => months(transactions), [transactions]);
   const setTxFilters = (patch) => setTxFiltersValue((prev) => ({ ...prev, ...patch }));
@@ -356,6 +429,8 @@ export default function App() {
     {!showEmpty && view === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} onCategorize={categorize} />}
     {!showEmpty && view === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}
     {!showEmpty && view === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}
+    {!showEmpty && view === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}
+    {!showEmpty && view === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} />}
     {!showEmpty && view === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}
     {!showEmpty && view === 'income' && <IncomeView all={transactions} setView={setView} setTxFilters={setTxFilters} />}
     {!showEmpty && view === 'goals' && <Goals all={transactions} />}
