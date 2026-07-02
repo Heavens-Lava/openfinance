@@ -1,0 +1,31 @@
+/* OpenFinance-specific additions layered over the base theme. */
+
+.privacy-note { font-size: 11px; color: #64748b; padding: 0 16px 12px; }
+
+.range-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.date-input { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; }
+.date-input input { border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; color: #0f172a; background: #fff; }
+
+.dropzone { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 44px 24px; border: 2px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: #334155; cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s; }
+.dropzone:hover, .dropzone.dragging { border-color: #2563eb; background: #eff6ff; }
+.dropzone svg { width: 28px; height: 28px; color: #2563eb; }
+.dropzone b { font-size: 16px; }
+.dropzone p { font-size: 13px; color: #64748b; max-width: 480px; margin: 0; }
+
+.privacy-banner { font-size: 13px; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; margin: 14px 0; }
+.save-error { font-size: 13px; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; margin: 14px 0; }
+
+.link-btn { border: none; background: none; color: #2563eb; font-size: 12px; cursor: pointer; padding: 4px 8px; }
+.link-btn:hover { text-decoration: underline; }
+
+.add-btn { border: none; background: #2563eb; color: #fff; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.add-btn:hover { background: #1d4ed8; }
+
+.goal-controls { display: flex; gap: 10px; align-items: center; }
+
+.empty-actions { padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.empty-actions p { margin: 0; color: #475569; font-size: 14px; }
+
+.welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 80px 24px; text-align: center; }
+.welcome h2 { font-size: 24px; }
+.welcome p { color: #64748b; max-width: 460px; margin: 0; }

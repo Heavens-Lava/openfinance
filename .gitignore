@@ -1,0 +1,13 @@
+# Never commit financial data. The app reads CSVs in the browser (or from
+# public/local-data/, which stays on your machine).
+*.csv
+*.CSV
+public/local-data/
+
+node_modules/
+dist/
+
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
