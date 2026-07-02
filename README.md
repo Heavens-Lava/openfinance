@@ -4,6 +4,10 @@
 
 **[▶ Try it live](https://heavens-lava.github.io/openfinance/)** — click *Import Data → Load demo data* to explore with synthetic data.
 
+![Dashboard](docs/dashboard.png)
+
+![Cash Flow Sankey](docs/cashflow.png)
+
 ## Why this exists
 
 Every budgeting app wants you to hand over your bank credentials to a third-party aggregator. OpenFinance takes the opposite approach: you download the CSVs your bank already gives you, drop them into a static web page, and all parsing and analysis happens client-side. Close the tab and your data is still only yours.
