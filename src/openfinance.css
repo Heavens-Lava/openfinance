@@ -2,6 +2,14 @@
 
 .privacy-note { font-size: 11px; color: #64748b; padding: 0 16px 12px; }
 
+/* Hero sits on a dark gradient — the default good/bad greens/reds are too dark there. */
+.hero-grid b.good { color: #6ee7b7; }
+.hero-grid b.bad { color: #fca5a5; }
+
+/* 13 bars × full dollar amounts collide; show the amount only for the hovered bar. */
+.bars button strong { opacity: 0; transition: opacity 0.16s ease; }
+.bars button:hover strong, .bars button:focus-visible strong { opacity: 1; }
+
 .range-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .date-input { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; }
 .date-input input { border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; color: #0f172a; background: #fff; }
