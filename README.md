@@ -40,7 +40,7 @@ Open http://127.0.0.1:5173, click **Import Data**, and drop in your bank CSVs (o
 
 ## Privacy model
 
-- Imported CSVs are stored as text in your browser's `localStorage` — never transmitted anywhere
+- Imported CSVs are stored as text in your browser's IndexedDB — never transmitted anywhere
 - The production build is fully static; there is no backend
 - `.gitignore` blocks all `*.csv` files so financial data can't be committed accidentally
 - Clearing site data in your browser removes everything
@@ -62,7 +62,6 @@ Those files load automatically when the app starts with no imported data.
 
 ## Roadmap
 
-- IndexedDB storage for very large histories
 - OFX/QFX import
 
 ## Tech
