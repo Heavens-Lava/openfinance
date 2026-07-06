@@ -466,14 +466,16 @@ function ImportView({ files, setFiles, saveError }) {
 export default function App() {
   const [view, setView] = useState('dashboard');
   const [filter, setFilter] = useState('ytd');
-  const [files, setFilesRaw] = useState(loadStoredFiles);
+  const [files, setFilesRaw] = useState([]);
   const [saveError, setSaveError] = useState(null);
   const [txFilters, setTxFiltersValue] = useState({ search: '', account: '', category: '', type: '' });
   useEffect(() => {
-    if (files.length) return;
-    loadLocalManifest().then((local) => { if (local?.length) setFilesRaw((prev) => (prev.length ? prev : local)); });
+    loadStoredFiles().then((stored) => {
+      if (stored.length) return setFilesRaw(stored);
+      loadLocalManifest().then((local) => { if (local?.length) setFilesRaw((prev) => (prev.length ? prev : local)); });
+    });
   }, []);
-  const setFiles = (next) => { setFilesRaw(next); setSaveError(saveStoredFiles(next)); };
+  const setFiles = (next) => { setFilesRaw(next); saveStoredFiles(next).then(setSaveError); };
   const [catOverrides, setCatOverrides] = useState(loadCategoryOverrides);
   const [rules, setRulesRaw] = useState(loadRules);
   const setRules = (next) => { setRulesRaw(next); saveRules(next); };
