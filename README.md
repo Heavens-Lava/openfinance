@@ -1,73 +1,66 @@
 # OpenFinance
 
-**A private, local-first personal finance dashboard.** Drop in the CSV exports from your bank and get a full picture of your money — spending trends, categories, recurring subscriptions, income, and budget goals. No account, no server, no tracking: every byte of your financial data stays in your browser.
+A free, private desktop finance tracker. Drop your bank CSV exports in — everything stays in your browser. No account connection, no server, no tracking.
 
-**[▶ Try it live](https://heavens-lava.github.io/openfinance/)** — click *Import Data → Load demo data* to explore with synthetic data.
+**[Live demo →](https://heavens-lava.github.io/openfinance/)**
 
-![Dashboard](docs/dashboard.png)
-
-![Cash Flow Sankey](docs/cashflow.png)
-
-## Why this exists
-
-Every budgeting app wants you to hand over your bank credentials to a third-party aggregator. OpenFinance takes the opposite approach: you download the CSVs your bank already gives you, drop them into a static web page, and all parsing and analysis happens client-side. Close the tab and your data is still only yours.
+![OpenFinance dashboard](https://user-images.githubusercontent.com/placeholder/screenshot.png)
 
 ## Features
 
-- **Drag-and-drop CSV import** with automatic format detection — Apple Card, Chase credit card, Chase checking, Elan, and credit-union exports are recognized out of the box, and any CSV with date + amount columns falls back to a generic parser
-- **Smart categorization** — merchant-keyword rules plus the bank's own category column, normalized into consistent categories
-- **Dashboard** — monthly spending chart (13 months), category breakdown, income vs. spend, cash balances, clickable drill-downs into any number you see
-- **Custom date ranges** — presets (this month, YTD, last 3/6 months) or pick any from/to dates
-- **Recurring-charge detection** — finds subscriptions automatically (3+ near-identical charges across 3+ months) and shows the monthly and yearly cost of keeping them
-- **Transactions browser** — search, filter by account/category/type, paginate, and export the filtered view back to CSV
-- **Editable categories** — reassign any transaction's category inline; your corrections persist in the browser and update every chart and total
-- **Custom rules** — your own "merchant contains X → category Y" mappings, applied to all past and future imports with live match counts
-- **Net-worth tracking** — month-end cash balances charted over time, extracted from the running balance column in your statements
-- **Cash-flow Sankey** — income flowing into categories and savings, drawn in dependency-free SVG, clickable to drill in
-- **Spending heatmap** — GitHub-style daily grid of the last 6 months; click any day to see its transactions
-- **Budget goals** — set monthly targets per category or merchant keyword, tracked month by month
-- **Multi-account** — import as many accounts as you like; balances are read from the statements when present
-- **Demo mode** — one click loads synthetic data so you can explore before importing anything
+- **Dashboard** — monthly spending bars, category breakdown, daily heatmap, stat cards
+- **Transactions** — search, filter by account/category/type, inline category editing
+- **Categories** — visual grid with spend totals, click to drill into transactions
+- **Cash Flow** — interactive Sankey diagram showing where money goes
+- **Net Worth** — month-end balance history from statement exports
+- **Recurring** — auto-detects subscriptions from 3+ months of similar charges
+- **Income & Savings** — monthly breakdown table with YTD stats and savings rate
+- **Goals** — monthly spend targets with progress bars, editable in-browser
+- **Custom Rules** — keyword → category rules that persist in localStorage
+- **Affordability** — housing/mortgage payment calculator
 
-## Quick start
+## Supported Banks
+
+| Bank | How to export |
+|---|---|
+| **Chase** | Account → Download Account Activity → CSV |
+| **Apple Card** | Wallet app → Apple Card → ··· → Download Statements → CSV |
+| **Desert Financial** | Online Banking → Account History → Export → CSV |
+| **Elan / First National** | Account History → Export → CSV |
+| **Any bank** | Any CSV with Date, Amount, and Description columns |
+
+You can upload multiple files at once — the app auto-detects each bank's format.
+
+## Privacy
+
+- **Zero server contact.** All CSV parsing runs in your browser tab.
+- **No account linking.** You download the export yourself; the app never touches your bank.
+- **No tracking.** No analytics, no cookies, no third-party scripts.
+- Goals and custom rules are saved in `localStorage` (this browser only).
+- Refreshing the tab clears your uploaded data — upload again next session.
+
+## Run Locally
 
 ```bash
+git clone https://github.com/Heavens-Lava/openfinance
+cd openfinance
 npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173, click **Import Data**, and drop in your bank CSVs (or click **Load demo data**).
+Open `http://localhost:5173` and drop in your CSV files.
 
-## Privacy model
+## Deploy Your Own Copy
 
-- Imported CSVs are stored as text in your browser's IndexedDB — never transmitted anywhere
-- The production build is fully static; there is no backend
-- `.gitignore` blocks all `*.csv` files so financial data can't be committed accidentally
-- Clearing site data in your browser removes everything
+1. Fork this repo
+2. Go to **Settings → Pages** and set Source to **GitHub Actions**
+3. Push any commit — the included workflow builds and deploys automatically
 
-### Optional: auto-load your own data in dev
+Your live URL will be `https://<your-username>.github.io/openfinance/`.
 
-If you run OpenFinance locally and don't want to re-import after clearing storage, create `public/local-data/` (gitignored) with your CSVs and a `manifest.json`:
+## Stack
 
-```json
-{
-  "files": [
-    { "file": "checking.csv", "name": "My Checking", "type": "checking" },
-    { "file": "card.csv", "name": "My Card", "type": "credit_card" }
-  ]
-}
-```
-
-Those files load automatically when the app starts with no imported data.
-
-## Roadmap
-
-- OFX/QFX import
-
-## Tech
-
-React 18 + Vite, PapaParse for CSV parsing. No other runtime dependencies.
-
-## License
-
-MIT
+- [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
+- [PapaParse](https://www.papaparse.com/) for CSV parsing
+- Pure CSS — no UI framework, no Tailwind
+- Zero external API calls at runtime

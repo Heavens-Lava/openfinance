@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 
-// Account colors are assigned in import order.
-export const PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#14b8a6', '#ec4899', '#ef4444', '#22c55e', '#a855f7'];
+// Populated dynamically from uploaded files — starts empty
+export let ACCOUNTS = [];
 
 export const CAT_COLORS = {
   'Food & Dining': '#f97316',
@@ -14,7 +14,7 @@ export const CAT_COLORS = {
   Education: '#3b82f6',
   Investments: '#7c3aed',
   AI: '#0ea5e9',
-  'Cash Withdrawals': '#ef4444',
+  'Cash Withdrawals': '#f59e0b',
   Income: '#10b981',
   'Payment/Transfer': '#6b7280',
   Auto: '#f59e0b',
@@ -23,28 +23,48 @@ export const CAT_COLORS = {
 
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const ACCOUNT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#14b8a6', '#ef4444', '#ec4899', '#f97316', '#a855f7'];
+
 const KEYWORD_CATS = [
-  [['payroll', 'direct deposit', 'direct dep', 'adp', 'paychex', 'salary', 'gusto'], 'Income'],
-  [['charles schwab', 'schwab invest', 'fidelity invest', 'vanguard buy', 'robinhood', 'e*trade', 'etrade'], 'Investments'],
-  [['anthropic', 'claude.ai', 'openai', 'chatgpt', 'deepseek', 'midjourney', 'perplexity', 'runway', 'elevenlabs'], 'AI'],
-  [['zelle', 'venmo', 'cash app', 'paypal transfer', 'credit card payment', 'online banking transfer', 'internet payment', 'realtime transfer', 'payment thank you', 'autopay payment', 'bill payment', 'online transfer', 'mobile payment', 'loan pmt', 'web pymt'], 'Payment/Transfer'],
-  [['restaurant', 'eatery', 'cafe', 'coffee', 'grill', 'kitchen', 'bistro', 'pizzeria', 'taqueria', 'sushi', 'ramen', 'bbq', 'burger', 'taco', 'mcdonald', 'wendy', 'subway', 'pizza', 'chipotle', 'starbucks', 'kfc', 'popeyes', 'chick-fil', 'sonic', 'panda express', 'doordash', 'uber eats', 'grubhub', 'dunkin', 'panera', 'wingstop'], 'Food & Dining'],
-  [['quiktrip', 'circle k', 'chevron', 'shell ', 'arco ', 'exxon', 'valero', 'bp ', 'sunoco', 'maverick', 'speedway', 'gas station', 'fuel stop'], 'Gas & Transport'],
+  [['payroll', 'direct deposit', 'adp', 'paychex', 'salary', 'stripe transfer'], 'Income'],
+  [['charles schwab', 'schwab invest', 'vanguard', 'fidelity invest'], 'Investments'],
+  [['anthropic', 'claude.ai', 'openai', 'chatgpt', 'midjourney', 'perplexity', 'runway', 'elevenlabs', 'deepseek', 'tripo'], 'AI'],
+  [['zelle', 'venmo', 'cash app', 'paypal transfer', 'applecard gsbank', 'payment to chase', 'credit card payment', 'online banking transfer', 'internet payment', 'realtime transfer', 'payment thank you', 'autopay payment', 'bill payment', 'online transfer', 'mobile payment', 'loan pmt', 'web pymt'], 'Payment/Transfer'],
+  [['restaurant', 'eatery', 'cafe', 'coffee', 'grill', 'kitchen', 'bistro', 'pizzeria', 'taqueria', 'sushi', 'ramen', 'thai ', 'chinese', 'mexican', 'bbq', 'burger', 'taco', 'mcdonald', 'burger king', 'wendy', 'taco bell', 'subway', 'pizza', 'chipotle', 'starbucks', 'kfc', 'popeyes', 'chick-fil', 'sonic', 'panda express', 'doordash', 'uber eats', 'grubhub', 'dunkin', 'panera', 'wingstop', 'raising cane', 'five guys', 'in-n-out', 'whataburger'], 'Food & Dining'],
+  [['qt ', 'quiktrip', 'circle k', 'chevron', 'shell ', 'arco ', 'exxon', 'valero', 'bp ', 'sunoco', "fry's fuel", 'frys fuel', 'maverick', 'speedway', 'gas station', 'fuel stop'], 'Gas & Transport'],
   [['parking', 'uber', 'lyft', 'taxi', 'bus pass', 'transit', 'toll ', 'amtrak', 'greyhound', 'airline'], 'Gas & Transport'],
-  [['7-eleven', 'walmart', 'wal-mart', 'target ', 'costco', 'sams club', 'whole foods', 'safeway', 'kroger', 'sprouts', 'albertsons', 'trader joe', 'aldi ', 'grocery', 'supermarket'], 'Groceries'],
-  [['cengage', 'mcgraw', 'pearson', 'chegg', 'college', 'university', 'tuition', 'udemy', 'coursera'], 'Education'],
-  [['bowling', 'arcade', 'museum', 'theater', 'netflix', 'spotify', 'hulu', 'disney', 'youtube premium', 'xbox', 'playstation', 'steam ', 'movie', 'gamestop', 'nintendo'], 'Entertainment'],
-  [['aliexpress', 'temu ', 'shein', 'amazon', 'ebay', 'etsy', 'best buy', 'home depot', 'lowes ', 'ikea', 'tj maxx', 'ross stores', 'dollar tree', 'five below'], 'Shopping'],
+  [['walmart', 'wal-mart', 'target ', 'costco', 'sams club', 'whole foods', 'safeway', 'kroger', "fry's food", 'frys food', 'sprouts', 'albertsons', 'trader joe', 'aldi ', 'grocery', 'supermarket', 'food city', '7-eleven'], 'Groceries'],
+  [['cengage', 'mcgraw', 'pearson', 'chegg', 'rio salado', 'college', 'university', 'tuition', 'udemy', 'coursera', 'khan academy', 'skillshare'], 'Education'],
+  [['netflix', 'spotify', 'hulu', 'disney', 'youtube premium', 'xbox', 'playstation', 'steam ', 'gaming', 'gamestop', 'nintendo', 'amc ', 'movie ticket', 'museum', 'bowling', 'arcade', 'bambulab'], 'Entertainment'],
+  [['aliexpress', 'temu ', 'shein', 'amazon', 'ebay', 'etsy', 'shopify', 'best buy', 'home depot', 'lowes ', 'ikea', 'tj maxx', 'ross stores', 'dollar tree', 'five below'], 'Shopping'],
   [['atm withdrawal', 'cash withdrawal'], 'Cash Withdrawals'],
-  [['at&t', 'verizon', 't-mobile', 'tmobile', 'xfinity', 'cox ', 'spectrum', 'mortgage', 'github', 'google one', 'icloud', 'rent pmt', 'rent payment', 'electric', 'utility', 'insurance'], 'Bills & Utilities'],
+  [['at&t', 'verizon', 't-mobile', 'tmobile', 'xfinity', 'cox ', 'spectrum', 'simplemobile', 'visible', 'mortgage', 'github', 'google one', 'icloud', 'great clips', 'mvd fee', 'vehicle registration', 'rent pmt', 'rent payment', 'electric', 'southwest gas', 'aps ', 'srp ', 'utility', 'insurance'], 'Bills & Utilities'],
   [['cvs ', 'walgreens', 'rite aid', 'pharmacy', 'clinic', 'doctor', 'hospital', 'urgent care', 'dental', 'vision', 'medical'], 'Health'],
-  [['jiffy lube', 'oil change', 'auto zone', 'oreilly', 'car wash', 'valvoline', 'discount tire', 'firestone'], 'Auto'],
+  [['jiffy lube', 'oil change', 'auto zone', 'oreilly', 'car wash', 'valvoline', 'discount tire', 'firestone', 'pep boys'], 'Auto'],
 ];
+
+const DF_CAT_MAP = {
+  'paychecks/salary': 'Income', payroll: 'Income', 'direct deposit': 'Income',
+  'investment income': 'Income', 'securities trade': 'Income', deposits: 'Income',
+  transfers: 'Payment/Transfer', 'credit card payments': 'Payment/Transfer',
+  'restaurants/dining': 'Food & Dining', 'restaurants & dining': 'Food & Dining',
+  groceries: 'Groceries', grocery: 'Groceries',
+  'gas/automotive': 'Gas & Transport', 'automotive expenses': 'Auto',
+  utilities: 'Bills & Utilities', 'personal care': 'Bills & Utilities',
+  rent: 'Bills & Utilities', 'online services': 'Bills & Utilities',
+  insurance: 'Bills & Utilities', fees: 'Bills & Utilities',
+  'service charges & fees': 'Bills & Utilities', 'fees & adjustments': 'Bills & Utilities',
+  'government services': 'Bills & Utilities',
+  'atm/cash withdrawals': 'Cash Withdrawals', 'atm/cash': 'Cash Withdrawals',
+  'healthcare/medical': 'Health', 'healthcare & pharmacy': 'Health',
+  entertainment: 'Entertainment', education: 'Education', shopping: 'Shopping',
+  'professional services': 'Other',
+};
 
 export function parseDate(str) {
   if (!str) return null;
   const clean = String(str).trim().replace(/^"|"$/g, '');
-  if (/^\d{4}-\d{2}-\d{2}/.test(clean)) return new Date(`${clean.slice(0, 10)}T12:00:00`);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return new Date(`${clean}T12:00:00`);
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(clean)) {
     const [m, d, y] = clean.split('/');
     return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T12:00:00`);
@@ -69,7 +89,7 @@ export function fmtDate(d) {
 export function guessCategory(text) {
   const low = String(text || '').toLowerCase();
   for (const [keywords, category] of KEYWORD_CATS) {
-    if (keywords.some((keyword) => low.includes(keyword))) return category;
+    if (keywords.some((kw) => low.includes(kw))) return category;
   }
   return 'Other';
 }
@@ -93,23 +113,6 @@ export function normalizeCategory(raw) {
   return raw || 'Other';
 }
 
-// Month-end balances per account, for net-worth tracking. Keyed YYYY-MM,
-// keeping the balance from the latest dated row within each month.
-function recordBalanceHistory(rows, dateField, balField, account, history) {
-  const byMonth = {};
-  for (const r of rows) {
-    if (!r[balField] || parseAmt(r[balField]) === 0) continue;
-    const d = parseDate(r[dateField]);
-    if (!d) continue;
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (!byMonth[ym] || d.getTime() > byMonth[ym].t) byMonth[ym] = { t: d.getTime(), bal: parseAmt(r[balField]) };
-  }
-  const months = Object.keys(byMonth);
-  if (months.length) history[account.id] = Object.fromEntries(months.map((m) => [m, byMonth[m].bal]));
-}
-
-// Balance from the most recent dated row — export order (newest-first vs
-// oldest-first) varies by bank and download settings, so don't trust row 0.
 function latestBalanceRow(rows, dateField) {
   let best = null, bestDate = 0;
   for (const r of rows) {
@@ -120,49 +123,49 @@ function latestBalanceRow(rows, dateField) {
   return best;
 }
 
+function recordBalanceHistory(rows, dateField, balField, account, history) {
+  const byMonth = {};
+  for (const r of rows) {
+    if (!r[balField] || parseAmt(r[balField]) === 0) continue;
+    const d = parseDate(r[dateField]);
+    if (!d) continue;
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!byMonth[ym] || d.getTime() > byMonth[ym].t) byMonth[ym] = { t: d.getTime(), bal: parseAmt(r[balField]) };
+  }
+  const monthKeys = Object.keys(byMonth);
+  if (monthKeys.length) history[account.id] = Object.fromEntries(monthKeys.map((m) => [m, byMonth[m].bal]));
+}
+
 export function detectFormat(headers) {
   const h = headers.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim());
   if (h.some((s) => s.includes('merchant')) && h.some((s) => s.includes('clearing'))) return 'apple';
-  if (h.some((s) => s.includes('transaction id')) && h.some((s) => s.includes('transaction category'))) return 'credit-union';
+  if (h.some((s) => s.includes('transaction id')) && h.some((s) => s.includes('transaction category'))) return 'desert-financial';
   if (h.some((s) => s.includes('post date')) && h.some((s) => s.includes('category'))) return 'chase-cc';
   if (h.some((s) => s.includes('posting date')) || h.some((s) => s.includes('check or slip'))) return 'chase-checking';
   if (h.some((s) => s === 'name') && h.some((s) => s === 'memo')) return 'elan';
-  if (h.some((s) => s.includes('date')) && h.some((s) => s.includes('amount'))) return 'generic';
   return 'unknown';
 }
 
-export const FORMAT_LABELS = {
-  apple: 'Apple Card',
-  'credit-union': 'Credit union',
-  'chase-cc': 'Chase credit card',
-  'chase-checking': 'Chase checking',
-  elan: 'Elan credit card',
-  generic: 'Generic CSV',
-  unknown: 'Unrecognized',
-};
-
-const CU_CAT_MAP = {
-  'paychecks/salary': 'Income',
-  payroll: 'Income',
-  deposits: 'Income',
-  transfers: 'Payment/Transfer',
-  'credit card payments': 'Payment/Transfer',
-  'restaurants/dining': 'Food & Dining',
-  groceries: 'Groceries',
-  'gas/automotive': 'Gas & Transport',
-  'automotive expenses': 'Auto',
-  utilities: 'Bills & Utilities',
-  rent: 'Bills & Utilities',
-  'online services': 'Bills & Utilities',
-  insurance: 'Bills & Utilities',
-  fees: 'Bills & Utilities',
-  'atm/cash withdrawals': 'Cash Withdrawals',
-  'atm/cash': 'Cash Withdrawals',
-  'healthcare/medical': 'Health',
-  entertainment: 'Entertainment',
-  education: 'Education',
-  shopping: 'Shopping',
-};
+export function inferAccount(filename, format, index) {
+  const base = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  const color = ACCOUNT_COLORS[index % ACCOUNT_COLORS.length];
+  const id = `acc-${index}-${filename}`;
+  const last4 = base.replace(/\D/g, '').slice(-4) || '';
+  const suffix = last4 ? ` ···${last4}` : '';
+  switch (format) {
+    case 'apple':          return { id, name: `Apple Card${suffix}`,          type: 'credit_card', bank: 'Apple / GS Bank',   color };
+    case 'chase-cc':       return { id, name: `Chase Credit Card${suffix}`,   type: 'credit_card', bank: 'Chase',              color };
+    case 'chase-checking': return { id, name: `Chase Checking${suffix}`,      type: 'checking',    bank: 'Chase',              color };
+    case 'elan':           return { id, name: `Elan Card${suffix}`,           type: 'credit_card', bank: 'Elan / Desert Fin.', color };
+    case 'desert-financial': {
+      const lc = base.toLowerCase();
+      const type = lc.includes('sav') ? 'savings' : 'checking';
+      const label = lc.includes('sav') ? 'Savings' : 'Checking';
+      return { id, name: `Desert Financial ${label}${suffix}`, type, bank: 'Desert Financial', color };
+    }
+    default: return { id, name: base || `Account ${index + 1}`, type: 'checking', bank: 'Unknown', color };
+  }
+}
 
 function makeTx(date, merchant, rawCat, amount, account, meta = {}) {
   let type = 'expense';
@@ -173,22 +176,15 @@ function makeTx(date, merchant, rawCat, amount, account, meta = {}) {
   else if (amount > 0 && (account.type === 'checking' || account.type === 'savings')) type = 'income';
   return {
     id: `${account.id}-${date?.getTime() || 0}-${merchant}-${amount}`,
-    date,
-    merchant,
-    category: rawCat,
-    amount,
-    type,
-    account: account.id,
-    accountName: account.name,
-    accountColor: account.color,
-    rawCategory: meta.rawCategory || '',
-    sourceType: meta.sourceType || '',
+    date, merchant, category: rawCat, amount, type,
+    account: account.id, accountName: account.name, accountColor: account.color,
+    rawCategory: meta.rawCategory || '', sourceType: meta.sourceType || '',
   };
 }
 
 function parseRows(rows, account, balances, history) {
   if (!rows.length) return [];
-  const format = account.format;
+  const format = detectFormat(Object.keys(rows[0]));
   if (format === 'apple') {
     return rows.filter((r) => r['Transaction Date']).map((r) => {
       const raw = parseAmt(r['Amount (USD)']);
@@ -217,7 +213,7 @@ function parseRows(rows, account, balances, history) {
   if (format === 'elan') {
     return rows.filter((r) => r.Date).map((r) => makeTx(parseDate(r.Date), r.Name || '', guessCategory(r.Name || ''), parseAmt(r.Amount), account));
   }
-  if (format === 'credit-union') {
+  if (format === 'desert-financial') {
     const validRows = rows.filter((r) => r['Posting Date']);
     const balRow = latestBalanceRow(validRows, 'Posting Date');
     if (balRow) balances[account.id] = parseAmt(balRow.Balance);
@@ -225,111 +221,140 @@ function parseRows(rows, account, balances, history) {
     return validRows.map((r) => {
       const desc = r.Description || '';
       const rawCat = String(r['Transaction Category'] || '').toLowerCase().trim();
-      return makeTx(parseDate(r['Posting Date']), desc, CU_CAT_MAP[rawCat] || guessCategory(desc), parseAmt(r.Amount), account, { rawCategory: r['Transaction Category'] || '', sourceType: r.Type || '' });
-    });
-  }
-  if (format === 'generic') {
-    const keys = Object.keys(rows[0]);
-    const find = (...cands) => keys.find((k) => cands.some((c) => k.toLowerCase().includes(c)));
-    const dateK = find('date');
-    const amtK = find('amount');
-    const descK = find('description', 'payee', 'merchant', 'name', 'memo', 'details') || keys[1];
-    const catK = find('category');
-    const balK = find('balance');
-    if (balK) {
-      const balRow = latestBalanceRow(rows.map((r) => ({ ...r, Balance: r[balK] })), dateK);
-      if (balRow) balances[account.id] = parseAmt(balRow.Balance);
-      recordBalanceHistory(rows, dateK, balK, account, history);
-    }
-    return rows.filter((r) => r[dateK]).map((r) => {
-      const merchant = r[descK] || '';
-      const guessed = guessCategory(merchant);
-      const cat = guessed !== 'Other' ? guessed : catK ? normalizeCategory(r[catK]) : 'Other';
-      return makeTx(parseDate(r[dateK]), merchant, cat, parseAmt(r[amtK]), account);
+      return makeTx(parseDate(r['Posting Date']), desc, DF_CAT_MAP[rawCat] || guessCategory(desc), parseAmt(r.Amount), account, { rawCategory: r['Transaction Category'] || '', sourceType: r.Type || '' });
     });
   }
   return [];
 }
 
-// Guess an account type from format + filename so income/payments classify sensibly.
-function guessAccountType(format, fileName) {
-  const n = fileName.toLowerCase();
-  if (n.includes('savings')) return 'savings';
-  if (n.includes('checking') || n.includes('debit')) return 'checking';
-  if (['apple', 'chase-cc', 'elan'].includes(format)) return 'credit_card';
-  if (format === 'chase-checking') return 'checking';
-  if (n.includes('card') || n.includes('credit') || n.includes('visa') || n.includes('amex')) return 'credit_card';
-  return 'checking';
-}
-
-function cleanName(fileName) {
-  return fileName.replace(/\.csv$/i, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) || 'Account';
-}
-
-// files: [{ id, name, text }] -> { transactions, balances, accounts }
-export function parseAll(files) {
-  const balances = {};
-  const balanceHistory = {};
-  const accounts = [];
-  const all = [];
-  files.forEach((file, i) => {
-    const parsed = Papa.parse(file.text, { header: true, skipEmptyLines: true });
-    const rows = parsed.data;
-    const format = rows.length ? detectFormat(Object.keys(rows[0])) : 'unknown';
-    const account = {
-      id: file.id,
-      name: file.accountName || cleanName(file.name),
-      type: file.accountType || guessAccountType(format, file.name),
-      bank: FORMAT_LABELS[format],
-      color: PALETTE[i % PALETTE.length],
-      format,
-    };
-    accounts.push(account);
-    all.push(...parseRows(rows, account, balances, balanceHistory));
-  });
-  const transactions = all.filter((t) => t.date).sort((a, b) => b.date - a.date);
-  // Identical same-day purchases (same account/merchant/amount) collide on id;
-  // suffix repeats so React keys stay unique and rent overrides target one row.
+function dedupeIds(transactions) {
   const seen = new Map();
   for (const t of transactions) {
     const n = seen.get(t.id) || 0;
     seen.set(t.id, n + 1);
     if (n > 0) t.id = `${t.id}-${n + 1}`;
   }
-  return { transactions, balances, balanceHistory, accounts };
+  return transactions;
 }
 
-// Optional dev convenience: put CSVs in public/local-data/ (gitignored) plus a
-// manifest.json listing them, and they load automatically — no browser import.
-// manifest.json: { "files": [{ "file": "checking.csv", "name": "My Checking", "type": "checking" }] }
-export async function loadLocalManifest() {
-  try {
-    const res = await fetch('/local-data/manifest.json');
-    if (!res.ok) return null;
-    const manifest = await res.json();
-    if (!Array.isArray(manifest.files) || !manifest.files.length) return null;
-    const files = await Promise.all(manifest.files.map(async (entry, i) => {
-      const r = await fetch(`/local-data/${entry.file}`);
-      if (!r.ok) return null;
-      return { id: `local-${i}-${entry.file}`, name: entry.file, accountName: entry.name, accountType: entry.type, text: await r.text(), local: true };
-    }));
-    return files.filter(Boolean);
-  } catch {
-    return null;
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// Primary entry point for the public app — accepts File objects from drag/drop or input
+export async function loadFromFiles(files) {
+  const balances = {}, balanceHistory = {}, accounts = [], allTxs = [];
+  const failed = [];
+  let i = 0;
+  for (const file of files) {
+    try {
+      const text = await readFileAsText(file);
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+      if (!parsed.data.length) { failed.push(file.name); continue; }
+      const format = detectFormat(Object.keys(parsed.data[0]));
+      if (format === 'unknown') { failed.push(file.name); continue; }
+      const account = inferAccount(file.name, format, i++);
+      accounts.push(account);
+      allTxs.push(...parseRows(parsed.data, account, balances, balanceHistory));
+    } catch (err) {
+      failed.push(file.name);
+      console.warn(`Could not parse ${file.name}:`, err.message);
+    }
   }
+  ACCOUNTS = accounts;
+  const transactions = dedupeIds(allTxs.filter((t) => t.date).sort((a, b) => b.date - a.date));
+  return { transactions, balances, balanceHistory, accounts, failed };
+}
+
+// Demo data — no files needed, showcases every feature
+export function generateDemoData() {
+  const chk = { id: 'demo-chk', name: 'My Checking', type: 'checking', bank: 'First National', color: '#10b981' };
+  const cc  = { id: 'demo-cc',  name: 'Rewards Visa', type: 'credit_card', bank: 'First National', color: '#f59e0b' };
+  const sav = { id: 'demo-sav', name: 'My Savings',   type: 'savings', bank: 'First National', color: '#14b8a6' };
+  const accounts = [chk, cc, sav];
+  ACCOUNTS = accounts;
+
+  const now = new Date();
+  const tx = (mAgo, day, merchant, amount, cat, acc) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - mAgo, day);
+    if (d > now) return null;
+    let type = amount < 0 ? 'expense' : acc.type === 'credit_card' ? 'payment' : 'income';
+    if (cat === 'Income') type = 'income';
+    if (cat === 'Payment/Transfer') type = 'payment';
+    if (cat === 'Investments') type = 'investment';
+    return { id: `demo-${mAgo}-${day}-${merchant}`, date: d, merchant, category: cat, amount, type, account: acc.id, accountName: acc.name, accountColor: acc.color, rawCategory: '', sourceType: '' };
+  };
+
+  const rows = [];
+  for (let m = 0; m < 7; m++) {
+    const jitter = () => (Math.random() - 0.5) * 3;
+    // Income (bi-weekly paycheck)
+    rows.push(tx(m, 1,  'PAYROLL DIRECT DEPOSIT', 2850 + jitter(), 'Income', chk));
+    rows.push(tx(m, 15, 'PAYROLL DIRECT DEPOSIT', 2850 + jitter(), 'Income', chk));
+    // Rent
+    rows.push(tx(m, 2,  'RENT PAYMENT', -1200, 'Bills & Utilities', chk));
+    // Savings transfer
+    rows.push(tx(m, 3,  'TRANSFER TO SAVINGS', -400, 'Payment/Transfer', chk));
+    rows.push(tx(m, 3,  'TRANSFER FROM CHECKING', 400, 'Payment/Transfer', sav));
+    // Utilities
+    rows.push(tx(m, 5,  'ELECTRIC BILL',     -(85 + jitter()),   'Bills & Utilities', chk));
+    rows.push(tx(m, 7,  'T-Mobile',          -(80 + jitter()),   'Bills & Utilities', cc));
+    rows.push(tx(m, 12, 'Netflix',           -15.49,             'Entertainment', cc));
+    rows.push(tx(m, 14, 'Spotify',           -9.99,              'Entertainment', cc));
+    rows.push(tx(m, 20, 'iCloud Storage',    -2.99,              'Bills & Utilities', cc));
+    rows.push(tx(m, 22, 'GitHub',            -4.00,              'Bills & Utilities', cc));
+    // Food
+    rows.push(tx(m, 3,  "McDonald's",         -(8 + jitter()),   'Food & Dining', cc));
+    rows.push(tx(m, 6,  'Chipotle',           -(13 + jitter()),  'Food & Dining', cc));
+    rows.push(tx(m, 9,  'Starbucks',          -(6 + jitter()),   'Food & Dining', cc));
+    rows.push(tx(m, 11, 'DoorDash',           -(32 + jitter()),  'Food & Dining', cc));
+    rows.push(tx(m, 17, 'Chick-fil-A',        -(11 + jitter()),  'Food & Dining', cc));
+    rows.push(tx(m, 23, 'Panera Bread',       -(14 + jitter()),  'Food & Dining', cc));
+    // Groceries
+    rows.push(tx(m, 8,  'Walmart Supercenter',-(92 + jitter()),  'Groceries', cc));
+    rows.push(tx(m, 21, 'Kroger',             -(64 + jitter()),  'Groceries', cc));
+    // Gas
+    rows.push(tx(m, 4,  'Shell Station',      -(51 + jitter()),  'Gas & Transport', cc));
+    rows.push(tx(m, 18, 'QuikTrip',           -(47 + jitter()),  'Gas & Transport', cc));
+    // Shopping
+    rows.push(tx(m, 10, 'Amazon.com',         -(38 + jitter()),  'Shopping', cc));
+    rows.push(tx(m, 16, 'Target',             -(55 + jitter()),  'Shopping', cc));
+    // Health
+    rows.push(tx(m, 13, 'CVS Pharmacy',       -(22 + jitter()),  'Health', cc));
+    // Entertainment
+    rows.push(tx(m, 25, 'AMC Theaters',       -(28 + jitter()),  'Entertainment', cc));
+    // AI (every other month)
+    if (m % 2 === 0) rows.push(tx(m, 6, 'ANTHROPIC* CLAUDE SUB', -20, 'AI', cc));
+    if (m % 2 === 1) rows.push(tx(m, 6, 'OpenAI ChatGPT Plus',   -20, 'AI', cc));
+    // Investments (monthly)
+    rows.push(tx(m, 8,  'Charles Schwab',     -200, 'Investments', chk));
+  }
+
+  const transactions = dedupeIds(rows.filter(Boolean).filter((t) => t.date).sort((a, b) => b.date - a.date));
+  const balances = { 'demo-chk': 3241.18, 'demo-cc': -847.32, 'demo-sav': 4800 };
+  const balanceHistory = {
+    'demo-chk': Object.fromEntries(Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (6 - i), 1);
+      return [`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, 2800 + i * 180 + Math.random() * 200];
+    })),
+  };
+  return { transactions, balances, balanceHistory, accounts };
 }
 
 export function getDateRange(filter) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  // custom:YYYY-MM-DD:YYYY-MM-DD — user-picked range; either side may be blank.
   if (filter.startsWith('custom:')) {
     const [, s, e] = filter.split(':');
     return [s ? new Date(`${s}T00:00:00`) : new Date(1970, 0, 1), e ? new Date(`${e}T23:59:59`) : today];
   }
   if (/^\d{4}-\d{2}$/.test(filter)) {
-    const year = parseInt(filter.slice(0, 4), 10);
-    const month = parseInt(filter.slice(5, 7), 10) - 1;
+    const year = parseInt(filter.slice(0, 4), 10), month = parseInt(filter.slice(5, 7), 10) - 1;
     return [new Date(year, month, 1), new Date(year, month + 1, 0, 23, 59, 59)];
   }
   if (/^\d{4}$/.test(filter)) {
@@ -351,4 +376,4 @@ export function filterByDate(transactions, filter) {
 }
 
 export const expenses = (transactions) => transactions.filter((t) => t.type === 'expense');
-export const income = (transactions) => transactions.filter((t) => t.type === 'income');
+export const income   = (transactions) => transactions.filter((t) => t.type === 'income');

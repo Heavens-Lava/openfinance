@@ -1,13 +1,15 @@
-# Never commit financial data. The app reads CSVs in the browser (or from
-# public/local-data/, which stays on your machine).
+# Never commit bank statement exports
 *.csv
 *.CSV
-public/local-data/
 
-node_modules/
-dist/
-
+# System
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Editor
 .vscode/
+
+# Build
+node_modules/
+dist/
