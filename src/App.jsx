@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
+import { createSyncedStore } from './lib/sync.js';
 
 const VIEWS = [
   ['dashboard', 'Dashboard', 'grid'],
@@ -442,11 +443,42 @@ export default function App() {
   const [status, setStatus] = useState('No data loaded yet. Import CSVs or load demo data to explore.');
   const [txFilters, setTxFiltersValue] = useState({ search: '', account: '', category: '', type: '' });
   const [rentOverrides, setRentOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem('mf_rent_tx_v1') || '{}'); } catch { return {}; } });
-  const [catOverrides, setCatOverrides] = useState(() => loadJson('mf_cat_overrides_v1', {}));
+
+  // catOverrides/rules are synced across devices via the raft-sync
+  // companion process, if one is running (ws://localhost:7001 by
+  // default) — see src/lib/sync.js. Falls back to plain localStorage
+  // (unchanged from before) when no companion process is reachable, so
+  // openfinance works exactly as before without it.
+  const catStoreRef = useRef(null);
+  if (!catStoreRef.current) catStoreRef.current = createSyncedStore('catOverride');
+  const ruleStoreRef = useRef(null);
+  if (!ruleStoreRef.current) ruleStoreRef.current = createSyncedStore('rule');
+
+  const [catOverrides, setCatOverridesRaw] = useState(() => {
+    const fromStore = catStoreRef.current.get();
+    return Object.keys(fromStore).length ? fromStore : loadJson('mf_cat_overrides_v1', {});
+  });
   const [rules, setRulesRaw] = useState(() => {
+    const fromStore = ruleStoreRef.current.get();
+    if (Object.keys(fromStore).length) {
+      return Object.entries(fromStore).map(([keyword, category]) => ({ keyword, category }));
+    }
     const saved = loadJson('mf_rules_v1', []);
     return Array.isArray(saved) ? saved.filter((r) => r && r.keyword && r.category) : [];
   });
+
+  useEffect(() => {
+    const unsubCat = catStoreRef.current.subscribeToRemoteUpdates((next) => {
+      setCatOverridesRaw(next);
+      localStorage.setItem('mf_cat_overrides_v1', JSON.stringify(next));
+    });
+    const unsubRules = ruleStoreRef.current.subscribeToRemoteUpdates((next) => {
+      const asList = Object.entries(next).map(([keyword, category]) => ({ keyword, category }));
+      setRulesRaw(asList);
+      localStorage.setItem('mf_rules_v1', JSON.stringify(asList));
+    });
+    return () => { unsubCat(); unsubRules(); };
+  }, []);
   const applyLoaded = (loaded, nextStatus) => {
     setData({ accounts: [], failed: [], ...loaded });
     setStatus(nextStatus || (loaded.failed?.length ? `${loaded.transactions.length.toLocaleString()} transactions loaded - failed: ${loaded.failed.join(', ')}` : `${loaded.transactions.length.toLocaleString()} transactions loaded`));
@@ -469,9 +501,24 @@ export default function App() {
     setStatus('No data loaded yet. Import CSVs or load demo data to explore.');
     setView('import');
   };
-  const setRules = (next) => { setRulesRaw(next); localStorage.setItem('mf_rules_v1', JSON.stringify(next)); };
-  const categorize = (id, category) => setCatOverrides((prev) => {
+  const setRules = (next) => {
+    setRulesRaw((prev) => {
+      // Diff by keyword so only changed/added/removed entries write
+      // through the sync store — writing the whole list every time would
+      // make every edit look like every rule changed, which is wrong for
+      // per-entry conflict resolution across devices.
+      const prevByKeyword = Object.fromEntries(prev.map((r) => [r.keyword, r.category]));
+      const nextByKeyword = Object.fromEntries(next.map((r) => [r.keyword, r.category]));
+      for (const [keyword, category] of Object.entries(nextByKeyword)) {
+        if (prevByKeyword[keyword] !== category) ruleStoreRef.current.set(keyword, category);
+      }
+      return next;
+    });
+    localStorage.setItem('mf_rules_v1', JSON.stringify(next));
+  };
+  const categorize = (id, category) => setCatOverridesRaw((prev) => {
     const next = { ...prev, [id]: category };
+    catStoreRef.current.set(id, category);
     localStorage.setItem('mf_cat_overrides_v1', JSON.stringify(next));
     return next;
   });
