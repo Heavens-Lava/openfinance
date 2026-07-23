@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "build:app": "vite build --outDir dist-app --base ./",
     "electron": "electron .",
-    "dist:win": "npm run build:app && electron-builder --win"
+    "dist:win": "npm run build:app && electron-builder --win --publish never"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
