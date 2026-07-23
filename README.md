@@ -2,7 +2,11 @@
 
 A free, private desktop finance tracker. Drop your bank CSV exports in — everything stays in your browser. No account connection, no server, no tracking.
 
-**[Live demo →](https://heavens-lava.github.io/openfinance/)**
+**[Open the app →](https://finance.jeffreymacy.com)**
+
+No install, no clone, no npm. Open the link in any browser (phone or desktop) and start uploading CSVs. Your browser will also offer to "Install" it as an app icon on your home screen/desktop — that's optional, the website works the same either way.
+
+**Prefer a Windows desktop app?** Grab the installer from [Releases →](https://github.com/Heavens-Lava/openfinance/releases/latest) — download `OpenFinance Setup x.x.x.exe`, run it, done. It's the same app, just packaged as a standalone `.exe` with Electron. Since it isn't code-signed, Windows SmartScreen may warn "Unknown publisher" the first time you run it — click **More info → Run anyway**.
 
 ![OpenFinance dashboard](https://user-images.githubusercontent.com/placeholder/screenshot.png)
 
@@ -49,6 +53,25 @@ npm run dev
 ```
 
 Open `http://localhost:5173` and drop in your CSV files.
+
+## Desktop App (Electron)
+
+Test the packaged app locally without building a full installer:
+
+```bash
+npm run build:app   # builds the web app with relative paths for file:// loading
+npm run electron    # opens it in an Electron window
+```
+
+Build the actual Windows installer:
+
+```bash
+npm run dist:win
+```
+
+This outputs `release/OpenFinance Setup x.x.x.exe`. A `release/win-unpacked/` folder is also produced — you can run `OpenFinance.exe` directly from there for a quick smoke test without installing anything.
+
+**Cutting a public release:** push a tag matching `v*.*.*` (e.g. `git tag v1.1.0 && git push origin v1.1.0`). The `release.yml` workflow builds the installer on `windows-latest` and publishes it to the repo's [Releases](https://github.com/Heavens-Lava/openfinance/releases) page automatically.
 
 ## Deploy Your Own Copy
 

@@ -13,3 +13,5 @@ desktop.ini
 # Build
 node_modules/
 dist/
+dist-app/
+release/
