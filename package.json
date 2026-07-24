@@ -33,6 +33,7 @@
       "electron/**/*",
       "dist-app/**/*"
     ],
+    "artifactName": "OpenFinance-Setup.exe",
     "win": {
       "target": "nsis",
       "icon": "build-resources/icon.ico"
