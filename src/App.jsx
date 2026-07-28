@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
 import { createSyncedStore } from './lib/sync.js';
+import { loadStoredFiles, saveStoredFiles } from './lib/storage.js';
 
 const VIEWS = [
   ['dashboard', 'Dashboard', 'grid'],
@@ -9,7 +10,6 @@ const VIEWS = [
   ['recurring', 'Recurring', 'repeat'],
   ['cashflow', 'Cash Flow', 'flow'],
   ['networth', 'Net Worth', 'trend'],
-  ['affordability', 'Affordability', 'home'],
   ['accounts', 'Accounts', 'card'],
   ['income', 'Income & Savings', 'coin'],
   ['goals', 'Goals', 'target'],
@@ -25,7 +25,7 @@ const DEFAULT_GOALS = [
   { id: 'subscriptions', label: 'Subscriptions', type: 'keyword', keywords: ['netflix', 'spotify', 'github', 'icloud'], target: 80, color: '#8b5cf6' },
 ];
 
-const PUBLIC_VIEWS = new Set(['import', 'affordability']);
+const PUBLIC_VIEWS = new Set(['import']);
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 const cats = (rows) => {
@@ -120,7 +120,7 @@ function Icon({ name }) {
 
 function Sidebar({ view, setView, status }) {
   return <aside className="sidebar">
-    <div className="brand"><div className="brand-mark">OF</div><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
+    <div className="brand"><img className="brand-mark" src="/favicon.svg" alt="" /><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
     <nav>{VIEWS.map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
     <p>{status}</p>
   </aside>;
@@ -402,20 +402,36 @@ function Goals({ all, rentOverrides, setView, setTxFilters, setFilter }) {
 const BANK_GUIDES = [
   { name: 'Chase', steps: ['Sign in → Accounts → your account', 'Click Download Account Activity', 'Choose date range → Download as CSV'] },
   { name: 'Apple Card', steps: ['iPhone: Wallet → Apple Card → ···  → Download Statements', 'Choose year/month → Export CSV', 'AirDrop or email the file to your Mac'] },
-  { name: 'Desert Financial', steps: ['Online banking → Account History', 'Set date range and click Search', 'Export → Download CSV'] },
-  { name: 'Elan / Other', steps: ['Log in → Account History or Statements', 'Look for Export, Download, or CSV link', 'Any CSV with Date, Amount, Description columns works'] },
+  { name: 'Bank of America', steps: ['Sign in → Accounts → your account', 'Click Download Transactions', 'Choose a date range and select CSV format'] },
+  { name: 'Wells Fargo', steps: ['Sign in → Account Activity', 'Click Download Account Activity', 'Choose date range → Comma Separated (CSV)'] },
+  { name: 'Capital One', steps: ['Sign in → your account → Transactions', 'Click the Download icon', 'Choose a date range → Download as CSV'] },
+  { name: 'Citi', steps: ['Sign in → Account Details', 'Click Download Transactions', 'Choose date range → CSV format'] },
+  { name: 'American Express', steps: ['Sign in → Statements & Activity', 'Click Download', 'Choose date range → Comma Delimited (CSV)'] },
+  { name: 'Discover', steps: ['Sign in → Account Details → Statements', 'Click Download Transactions', 'Choose a date range → CSV'] },
+  { name: 'US Bank / PNC / Regional Banks', steps: ['Sign in → Account History or Activity', 'Look for a Download, Export, or Print icon', 'Choose CSV or Excel format if offered'] },
+  { name: 'Credit Unions & Other Banks', steps: ['Log in → Account History or Statements', 'Look for Export, Download, or CSV link', 'Any CSV with Date, Amount, and Description columns works'] },
 ];
 
-function ImportView({ data, status, onFiles, onDemo, onLocal, onClear }) {
+function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingImport, onRestore, onDiscardPending }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const chooseFiles = (fileList) => onFiles([...fileList].filter((f) => /\.csv$/i.test(f.name)));
   const hasData = data.transactions.length > 0;
   return <div className="view">
+    {!hasData && pendingImport && <Panel title="Previous Import Found">
+      <div className="empty-actions">
+        <p>You have {pendingImport.length} CSV file{pendingImport.length === 1 ? '' : 's'} saved from last time ({pendingImport.map((f) => f.name).join(', ')}).</p>
+        <div className="action-row">
+          <button className="add-btn" onClick={onRestore}>Load last import</button>
+          <button className="secondary-btn" onClick={onDiscardPending}>Start fresh</button>
+        </div>
+      </div>
+    </Panel>}
     <div className={`dropzone ${dragging ? 'dragging' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); chooseFiles(e.dataTransfer.files); }} onClick={() => inputRef.current?.click()}>
       <Icon name="upload" />
       <b>Drop bank CSV exports here</b>
-      <p>Chase, Apple Card, Elan, Desert Financial — drop one or more CSVs and everything stays in your browser.</p>
+      <p>Any bank or credit union — drop one or more CSVs and everything stays in your browser.</p>
+      <button type="button" className="add-btn" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>Browse files</button>
       <input ref={inputRef} type="file" accept=".csv" multiple hidden onChange={(e) => { chooseFiles(e.target.files); e.target.value = ''; }} />
     </div>
     <p className="privacy-banner">Everything is parsed in your browser. No account connection, no server upload, no tracking.</p>
@@ -443,6 +459,11 @@ export default function App() {
   const [status, setStatus] = useState('No data loaded yet. Import CSVs or load demo data to explore.');
   const [txFilters, setTxFiltersValue] = useState({ search: '', account: '', category: '', type: '' });
   const [rentOverrides, setRentOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem('mf_rent_tx_v1') || '{}'); } catch { return {}; } });
+  const [pendingImport, setPendingImport] = useState(null);
+
+  useEffect(() => {
+    loadStoredFiles().then((files) => { if (files.length) setPendingImport(files); });
+  }, []);
 
   // catOverrides/rules are synced across devices via the raft-sync
   // companion process, if one is running (ws://localhost:7001 by
@@ -491,15 +512,25 @@ export default function App() {
     try {
       const loaded = await loadFromFiles(files);
       applyLoaded(loaded, loaded.failed?.length ? `${loaded.transactions.length.toLocaleString()} transactions loaded - skipped: ${loaded.failed.join(', ')}` : `${loaded.transactions.length.toLocaleString()} transactions loaded from ${files.length} file${files.length === 1 ? '' : 's'}`);
+      setPendingImport(null);
+      const stored = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
+      saveStoredFiles(stored);
     } catch (err) {
       setStatus(err.message);
     }
   };
+  const restoreImport = () => {
+    if (!pendingImport) return;
+    loadFiles(pendingImport.map((f) => new File([f.text], f.name, { type: 'text/csv' })));
+  };
+  const discardPendingImport = () => setPendingImport(null);
   const loadDemo = () => applyLoaded(generateDemoData(), 'Demo data loaded');
   const clearData = () => {
     setData({ transactions: [], balances: {}, balanceHistory: {}, accounts: [], failed: [] });
     setStatus('No data loaded yet. Import CSVs or load demo data to explore.');
     setView('import');
+    setPendingImport(null);
+    saveStoredFiles([]);
   };
   const setRules = (next) => {
     setRulesRaw((prev) => {
@@ -547,5 +578,5 @@ export default function App() {
   });
   const hasData = data.transactions.length > 0;
   const activeView = hasData || PUBLIC_VIEWS.has(view) ? view : 'import';
-  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>Private by design - all analysis happens in this browser</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content">{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={transactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{hasData && activeView === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}{hasData && activeView === 'income' && <Income all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={transactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} />}</div></main></div>;
+  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>Private by design - all analysis happens in this browser</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content">{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={transactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{hasData && activeView === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}{hasData && activeView === 'income' && <Income all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={transactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} />}</div></main></div>;
 }

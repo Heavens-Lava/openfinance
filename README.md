@@ -29,11 +29,20 @@ No install, no clone, no npm. Open the link in any browser (phone or desktop) an
 |---|---|
 | **Chase** | Account → Download Account Activity → CSV |
 | **Apple Card** | Wallet app → Apple Card → ··· → Download Statements → CSV |
+| **Bank of America** | Account → Download Transactions → CSV |
+| **Wells Fargo** | Account Activity → Download Account Activity → CSV |
+| **Capital One** | Account → Transactions → Download → CSV |
+| **Citi** | Account Details → Download Transactions → CSV |
+| **American Express** | Statements & Activity → Download → Comma Delimited (CSV) |
+| **Discover** | Account Details → Statements → Download Transactions → CSV |
 | **Desert Financial** | Online Banking → Account History → Export → CSV |
 | **Elan / First National** | Account History → Export → CSV |
-| **Any bank** | Any CSV with Date, Amount, and Description columns |
+| **Any bank or credit union** | Any CSV with Date, Amount, and Description columns |
 
-You can upload multiple files at once — the app auto-detects each bank's format.
+You can upload multiple files at once — the app auto-detects each bank's format, and
+falls back to a generic parser for any CSV with recognizable date/amount/description
+columns (including separate Debit/Credit columns), so it isn't limited to the banks
+listed above.
 
 ## Privacy
 

@@ -69,12 +69,22 @@ export function parseDate(str) {
     const [m, d, y] = clean.split('/');
     return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T12:00:00`);
   }
+  // Fallback for less common formats some banks use (e.g. "Jan 5, 2026",
+  // "05-Jan-2026"). Rebuilt at noon local time to avoid the day shifting
+  // depending on how the browser resolves the timezone for that format.
+  const parsed = new Date(clean);
+  if (!isNaN(parsed.getTime())) return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12);
   return null;
 }
 
 export function parseAmt(str) {
   if (str === null || str === undefined || str === '') return 0;
-  return parseFloat(String(str).replace(/[$, ]/g, '')) || 0;
+  let s = String(str).trim();
+  let negative = false;
+  if (/^\(.*\)$/.test(s)) { negative = true; s = s.slice(1, -1); } // accounting format: (42.10)
+  if (/-\s*$/.test(s)) { negative = true; s = s.replace(/-\s*$/, ''); } // trailing minus: 42.10-
+  const n = parseFloat(s.replace(/[$, ]/g, '')) || 0;
+  return negative ? -Math.abs(n) : n;
 }
 
 export function dollar(n) {
@@ -113,10 +123,10 @@ export function normalizeCategory(raw) {
   return raw || 'Other';
 }
 
-function latestBalanceRow(rows, dateField) {
+function latestBalanceRow(rows, dateField, balField = 'Balance') {
   let best = null, bestDate = 0;
   for (const r of rows) {
-    if (!r.Balance || parseAmt(r.Balance) === 0) continue;
+    if (!r[balField] || parseAmt(r[balField]) === 0) continue;
     const d = parseDate(r[dateField])?.getTime() || 0;
     if (d > bestDate) { bestDate = d; best = r; }
   }
@@ -136,6 +146,22 @@ function recordBalanceHistory(rows, dateField, balField, account, history) {
   if (monthKeys.length) history[account.id] = Object.fromEntries(monthKeys.map((m) => [m, byMonth[m].bal]));
 }
 
+const DATE_COL_PATTERNS = [/^date$/i, /^transaction date$/i, /^posting date$/i, /^post date$/i, /^trans(?:action)? date$/i, /date/i];
+const DESC_COL_PATTERNS = [/^description$/i, /^merchant$/i, /^payee$/i, /^name$/i, /^memo$/i, /^narrative$/i, /^details$/i, /^transaction description$/i, /descr/i];
+const AMOUNT_COL_PATTERNS = [/^amount$/i, /^transaction amount$/i, /^amt$/i];
+const DEBIT_COL_PATTERNS = [/^debit$/i, /^debit amount$/i, /^withdrawals?$/i];
+const CREDIT_COL_PATTERNS = [/^credit$/i, /^credit amount$/i, /^deposits?$/i];
+const CATEGORY_COL_PATTERNS = [/^category$/i, /^transaction category$/i, /^type$/i];
+const BALANCE_COL_PATTERNS = [/^balance$/i, /^running balance$/i, /^ending balance$/i, /^available balance$/i, /bal/i];
+
+function findColumn(headers, patterns) {
+  for (const p of patterns) {
+    const hit = headers.find((h) => p.test(h.trim()));
+    if (hit) return hit;
+  }
+  return null;
+}
+
 export function detectFormat(headers) {
   const h = headers.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim());
   if (h.some((s) => s.includes('merchant')) && h.some((s) => s.includes('clearing'))) return 'apple';
@@ -143,6 +169,13 @@ export function detectFormat(headers) {
   if (h.some((s) => s.includes('post date')) && h.some((s) => s.includes('category'))) return 'chase-cc';
   if (h.some((s) => s.includes('posting date')) || h.some((s) => s.includes('check or slip'))) return 'chase-checking';
   if (h.some((s) => s === 'name') && h.some((s) => s === 'memo')) return 'elan';
+
+  // Generic fallback: any CSV with a recognizable date column and either an
+  // amount column or separate debit/credit columns works, regardless of bank.
+  const dateCol = findColumn(headers, DATE_COL_PATTERNS);
+  const hasAmount = findColumn(headers, AMOUNT_COL_PATTERNS) || findColumn(headers, DEBIT_COL_PATTERNS) || findColumn(headers, CREDIT_COL_PATTERNS);
+  if (dateCol && hasAmount) return 'generic';
+
   return 'unknown';
 }
 
@@ -163,6 +196,7 @@ export function inferAccount(filename, format, index) {
       const label = lc.includes('sav') ? 'Savings' : 'Checking';
       return { id, name: `Desert Financial ${label}${suffix}`, type, bank: 'Desert Financial', color };
     }
+    case 'generic': return { id, name: base || `Account ${index + 1}`, type: 'checking', bank: 'Bank Account', color };
     default: return { id, name: base || `Account ${index + 1}`, type: 'checking', bank: 'Unknown', color };
   }
 }
@@ -222,6 +256,32 @@ function parseRows(rows, account, balances, history) {
       const desc = r.Description || '';
       const rawCat = String(r['Transaction Category'] || '').toLowerCase().trim();
       return makeTx(parseDate(r['Posting Date']), desc, DF_CAT_MAP[rawCat] || guessCategory(desc), parseAmt(r.Amount), account, { rawCategory: r['Transaction Category'] || '', sourceType: r.Type || '' });
+    });
+  }
+  if (format === 'generic') {
+    const headers = Object.keys(rows[0]);
+    const dateCol = findColumn(headers, DATE_COL_PATTERNS);
+    const descCol = findColumn(headers, DESC_COL_PATTERNS);
+    const amountCol = findColumn(headers, AMOUNT_COL_PATTERNS);
+    const debitCol = findColumn(headers, DEBIT_COL_PATTERNS);
+    const creditCol = findColumn(headers, CREDIT_COL_PATTERNS);
+    const categoryCol = findColumn(headers, CATEGORY_COL_PATTERNS);
+    const balanceCol = findColumn(headers, BALANCE_COL_PATTERNS);
+    if (!dateCol || (!amountCol && !debitCol && !creditCol)) return [];
+
+    const validRows = rows.filter((r) => r[dateCol]);
+    if (balanceCol) {
+      const balRow = latestBalanceRow(validRows, dateCol, balanceCol);
+      if (balRow) balances[account.id] = parseAmt(balRow[balanceCol]);
+      recordBalanceHistory(validRows, dateCol, balanceCol, account, history);
+    }
+
+    return validRows.map((r) => {
+      const merchant = descCol ? r[descCol] : '';
+      const amount = amountCol ? parseAmt(r[amountCol]) : parseAmt(r[creditCol]) - Math.abs(parseAmt(r[debitCol]));
+      const guessed = guessCategory(merchant);
+      const rawCat = categoryCol ? r[categoryCol] : '';
+      return makeTx(parseDate(r[dateCol]), merchant, guessed !== 'Other' ? guessed : normalizeCategory(rawCat), amount, account, { rawCategory: rawCat });
     });
   }
   return [];
