@@ -9,9 +9,15 @@ desktop.ini
 
 # Editor
 .vscode/
+.claude/settings.local.json
+.env
+.env.local
+.env.*.local
+supabase/.temp/
 
 # Build
 node_modules/
 dist/
+dist-macyfinance/
 dist-app/
 release/

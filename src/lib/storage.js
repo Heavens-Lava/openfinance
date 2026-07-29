@@ -2,8 +2,11 @@
 // (no practical size cap, unlike localStorage's ~5MB); nothing is ever
 // sent to a server. v1 stored files in localStorage — migrated on load.
 
+import { getAppKey, getAppStoragePrefix, IS_MACYFINANCE_VARIANT } from './appConfig.js';
+import { loadCloudFiles, saveCloudFiles } from './cloudStorage.js';
+
 const LEGACY_KEY = 'of_files_v1';
-const DB_NAME = 'openfinance';
+const DB_NAME = `openfinance-${getAppStoragePrefix()}`;
 const STORE = 'files';
 
 function openDb() {
@@ -17,7 +20,7 @@ function openDb() {
 
 function loadLegacyFiles() {
   try {
-    const files = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
+    const files = JSON.parse(localStorage.getItem(getAppKey(LEGACY_KEY)) || '[]');
     return Array.isArray(files) ? files : [];
   } catch {
     return [];
@@ -25,6 +28,7 @@ function loadLegacyFiles() {
 }
 
 export async function loadStoredFiles() {
+  if (IS_MACYFINANCE_VARIANT) return loadCloudFiles();
   try {
     const db = await openDb();
     const files = await new Promise((resolve, reject) => {
@@ -36,7 +40,7 @@ export async function loadStoredFiles() {
     const legacy = loadLegacyFiles();
     if (legacy.length) {
       await saveStoredFiles(legacy);
-      localStorage.removeItem(LEGACY_KEY);
+      localStorage.removeItem(getAppKey(LEGACY_KEY));
     }
     return legacy;
   } catch {
@@ -45,6 +49,14 @@ export async function loadStoredFiles() {
 }
 
 export async function saveStoredFiles(files) {
+  if (IS_MACYFINANCE_VARIANT) {
+    try {
+      await saveCloudFiles(files);
+      return null;
+    } catch (err) {
+      return `Could not sync imports: ${err.message}`;
+    }
+  }
   try {
     const db = await openDb();
     await new Promise((resolve, reject) => {

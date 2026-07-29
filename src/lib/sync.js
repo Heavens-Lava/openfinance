@@ -20,6 +20,7 @@
 
 const DEFAULT_PORT = 7001;
 const RECONNECT_DELAY_MS = 2000;
+const SYNC_ENABLED = import.meta.env.VITE_RAFT_SYNC === 'true';
 
 function makeClient(port) {
   let ws = null;
@@ -100,6 +101,7 @@ let sharedClient = null;
 // in raft-sync's manual demo — override if you run the companion process
 // on a different port.
 export function getSyncClient(port = DEFAULT_PORT) {
+  if (!SYNC_ENABLED) return null;
   if (typeof WebSocket === 'undefined') return null; // non-browser environment (SSR/tests)
   if (!sharedClient) sharedClient = makeClient(port);
   return sharedClient;

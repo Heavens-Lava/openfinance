@@ -90,6 +90,54 @@ This outputs `release/OpenFinance Setup x.x.x.exe`. A `release/win-unpacked/` fo
 
 Your live URL will be `https://<your-username>.github.io/openfinance/`.
 
+### OpenFinance + MacyFinance from one codebase
+
+This repository produces two deployments:
+
+| Deployment | Data model | Authentication |
+| --- | --- | --- |
+| `openfinance.jeffreymacy.com` | Browser-only IndexedDB/localStorage | None |
+| `macyfinance.jeffreymacy.com` | Private Supabase Storage | Supabase email/password |
+
+OpenFinance is deliberately local-only. Its build does not create a Supabase
+client or make cloud data requests. MacyFinance uses the same UI and finance
+logic, but loads and saves its CSV imports in a private, user-scoped Storage
+bucket. The login page only asks for a password; the single account email is a
+deployment variable.
+
+The GitHub Actions workflow deploys both variants from this repository.
+OpenFinance uses this repository's GitHub Pages site. MacyFinance is built from
+the same commit and published to the `gh-pages` branch of the private
+`Heavens-Lava/macyfinance` repository, which is only a deployment target—not a
+second application codebase. The OpenFinance repository has these Actions
+variables/secrets:
+
+```text
+VITE_APP_VARIANT=macyfinance
+VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-public-anon-key
+VITE_MACY_LOGIN_EMAIL=your-supabase-user@example.com
+```
+
+Setup:
+
+1. In Supabase Authentication, create the one MacyFinance email/password user
+   and disable public sign-ups.
+2. Apply [`supabase/migrations/20260729000000_macyfinance_private_storage.sql`](supabase/migrations/20260729000000_macyfinance_private_storage.sql) in the Supabase
+   SQL editor. It creates a private bucket and RLS policies that only allow a
+   signed-in user to access files beneath their own user ID.
+3. Configure the MacyFinance Pages site to publish from `gh-pages`, then point
+   the Namecheap `macyfinance` CNAME to `heavens-lava.github.io`.
+4. Sign in, import the current CSV files once, and they will then be available
+   from every signed-in device.
+
+The Supabase anon key is safe to expose in a browser build because it grants no
+file access by itself; authentication plus the bucket RLS policies enforce
+access. Never place a Supabase service-role key in a `VITE_` variable.
+
+For a local MacyFinance build, copy `.env.example` to `.env.local`, fill in the
+MacyFinance values, and run `npm run dev`. Do not commit `.env.local`.
+
 ## Stack
 
 - [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)

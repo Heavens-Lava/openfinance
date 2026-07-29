@@ -28,6 +28,9 @@ jobs:
       - run: npm ci
 
       - name: Build
+        env:
+          VITE_APP_VARIANT: openfinance
+          VITE_CNAME: openfinance.jeffreymacy.com
         run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
@@ -44,3 +47,35 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
+
+  deploy-macyfinance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build MacyFinance
+        env:
+          VITE_APP_VARIANT: macyfinance
+          VITE_CNAME: macyfinance.jeffreymacy.com
+          VITE_SUPABASE_URL: ${{ vars.MACYFINANCE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.MACYFINANCE_SUPABASE_ANON_KEY }}
+          VITE_MACY_LOGIN_EMAIL: ${{ vars.MACYFINANCE_LOGIN_EMAIL }}
+        run: npm run build -- --outDir dist-macyfinance
+
+      - name: Deploy MacyFinance
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.MACYFINANCE_DEPLOY_KEY }}
+          external_repository: Heavens-Lava/macyfinance
+          publish_branch: gh-pages
+          publish_dir: ./dist-macyfinance
+          cname: macyfinance.jeffreymacy.com
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BIZ_CAT_COLORS, CAT_COLORS, MONTH_NAMES, dollar, dollarCompact, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
 import { createSyncedStore } from './lib/sync.js';
 import { loadStoredFiles, saveStoredFiles } from './lib/storage.js';
+import { APP_NAME, APP_TAGLINE, AUTH_REQUIRED, getAppKey, loadAppJson, saveAppJson } from './lib/appConfig.js';
+import { cloudConfigured, getSession, onAuthStateChange, signInWithPassword, signOut } from './lib/supabase.js';
 
 // 4th field tags which mode a view belongs to: 'shared' shows in both
 // Personal and Business mode, otherwise it only shows in the matching mode.
@@ -17,6 +19,7 @@ const VIEWS = [
   ['goals', 'Goals', 'target', 'personal'],
   ['business', 'Business P&L', 'briefcase', 'business'],
   ['invoices', 'Invoicing', 'invoice', 'business'],
+  ['mileage', 'Mileage', 'car', 'business'],
   ['rules', 'Rules', 'wand', 'shared'],
   ['import', 'Import Data', 'upload', 'shared'],
 ];
@@ -29,7 +32,7 @@ const DEFAULT_GOALS = [
   { id: 'subscriptions', label: 'Subscriptions', type: 'keyword', keywords: ['netflix', 'spotify', 'github', 'icloud'], target: 80, color: '#8b5cf6' },
 ];
 
-const PUBLIC_VIEWS = new Set(['import', 'invoices']);
+const PUBLIC_VIEWS = new Set(['import', 'invoices', 'mileage']);
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 const cats = (rows) => {
@@ -52,12 +55,35 @@ const isCashWithdrawal = (t) => {
 };
 
 function loadJson(key, fallback) {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
-    return parsed && typeof parsed === 'object' ? parsed : fallback;
-  } catch {
-    return fallback;
+  const parsed = loadAppJson(key, fallback);
+  if (parsed && typeof parsed === 'object') return parsed;
+  if (parsed === null || parsed === undefined) return fallback;
+  return fallback;
+}
+
+function isoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function filterForImportedTransactions(transactions) {
+  const dates = transactions
+    .map((transaction) => transaction.date)
+    .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+    .sort((a, b) => a - b);
+  if (!dates.length) return 'ytd';
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  if (first.getFullYear() === last.getFullYear() && first.getMonth() === last.getMonth()) {
+    if (first.getDate() === last.getDate()) {
+      const day = isoDate(first);
+      return `custom:${day}:${day}`;
+    }
+    return `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}`;
   }
+  return `custom:${isoDate(first)}:${isoDate(last)}`;
 }
 
 function detectRecurring(all) {
@@ -120,19 +146,21 @@ function Icon({ name }) {
     upload: <><path d="M12 16V4m0 0l-4 4m4-4l4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>,
     briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
     invoice: <><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v4h4" /><path d="M9 12h6M9 16h6M9 9h2" /></>,
+    car: <><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11" /><rect x="3" y="11" width="18" height="6" rx="2" /><circle cx="7.5" cy="17.5" r="1.5" /><circle cx="16.5" cy="17.5" r="1.5" /></>,
   };
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-function Sidebar({ view, setView, status, mode, setMode, theme, setTheme }) {
+function Sidebar({ view, setView, status, mode, setMode, theme, setTheme, onSignOut }) {
   return <aside className="sidebar">
-    <div className="brand"><img className="brand-mark" src={theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg'} alt="" /><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
+    <div className="brand"><img className="brand-mark" src={theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg'} alt="" /><div><b>{APP_NAME}</b><small>{APP_TAGLINE}</small></div></div>
     <div className="mode-toggle">
       <button className={mode === 'personal' ? 'active' : ''} onClick={() => setMode('personal')} type="button">Personal</button>
       <button className={mode === 'business' ? 'active' : ''} onClick={() => setMode('business')} type="button">Business</button>
     </div>
     <nav>{VIEWS.filter(([, , , tag]) => tag === 'shared' || tag === mode).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
     <button type="button" className="theme-toggle" onClick={() => setTheme(theme === 'warm' ? 'classic' : 'warm')}>{theme === 'warm' ? 'Switch to classic theme' : 'Switch to warm theme'}</button>
+    {onSignOut ? <button type="button" className="theme-toggle" onClick={onSignOut}>Sign out</button> : null}
     <p>{status}</p>
   </aside>;
 }
@@ -204,8 +232,73 @@ function bizCats(rows) {
 const BIZ_CATEGORY_SET = new Set(Object.keys(BIZ_CAT_COLORS));
 const needsTaxCategory = (t) => !BIZ_CATEGORY_SET.has(t.category);
 
-function Business({ rows, all, filter, taxRate, setTaxRate, setView, setTxFilters, hasBizAccounts, onCategorize }) {
-  if (!hasBizAccounts) return <div className="view"><Panel title="Business P&L"><div className="empty">No accounts marked as Business yet. Go to Accounts and mark your business bank or card, then come back here.</div></Panel></div>;
+// Calendar-year quarterly estimated tax periods, per IRS Form 1040-ES (uneven
+// lengths: Q1 is 3 months, Q2 is 2, Q3 is 3, Q4 is 4 — Q4 is due the following January).
+const TAX_QUARTERS = [
+  { key: 'Q1', label: 'Q1 (Jan - Mar)', startMonth: 0, endMonth: 2, dueMonth: 3, dueDay: 15, dueYearOffset: 0 },
+  { key: 'Q2', label: 'Q2 (Apr - May)', startMonth: 3, endMonth: 4, dueMonth: 5, dueDay: 15, dueYearOffset: 0 },
+  { key: 'Q3', label: 'Q3 (Jun - Aug)', startMonth: 5, endMonth: 7, dueMonth: 8, dueDay: 15, dueYearOffset: 0 },
+  { key: 'Q4', label: 'Q4 (Sep - Dec)', startMonth: 8, endMonth: 11, dueMonth: 0, dueDay: 15, dueYearOffset: 1 },
+];
+
+function quarterlyEstimates(all, year, taxRate) {
+  return TAX_QUARTERS.map((q) => {
+    const start = new Date(year, q.startMonth, 1);
+    const end = new Date(year, q.endMonth + 1, 0, 23, 59, 59);
+    const dueDate = new Date(year + q.dueYearOffset, q.dueMonth, q.dueDay);
+    const txs = all.filter((t) => t.date >= start && t.date <= end);
+    const netProfit = sum(income(txs), (t) => t.amount) - sum(expenses(txs).filter((t) => t.category !== 'Owner Draw/Transfer'), (t) => Math.abs(t.amount));
+    const estPayment = netProfit > 0 ? netProfit * taxRate / 100 : 0;
+    return { ...q, start, end, dueDate, netProfit, estPayment };
+  });
+}
+
+function QuarterlyTaxes({ all, taxRate, quarterlyPaid, toggleQuarterlyPaid }) {
+  const year = new Date().getFullYear();
+  const today = new Date();
+  const quarters = quarterlyEstimates(all, year, taxRate);
+  return <Panel title={`Quarterly Estimated Taxes - ${year}`}>
+    <div className="table">
+      <div><b>Quarter</b><b>Due</b><b>Net Profit</b><b>Est. Payment</b><b>Status</b></div>
+      {quarters.map((q) => {
+        const paidKey = `${year}-${q.key}`;
+        const paid = Boolean(quarterlyPaid[paidKey]);
+        const isPastDue = !paid && q.dueDate < today;
+        return <div key={q.key}>
+          <span>{q.label}</span>
+          <span>{q.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          <span className={q.netProfit >= 0 ? 'good' : 'bad'}>{q.netProfit >= 0 ? '+' : '-'}{dollar(Math.abs(q.netProfit))}</span>
+          <span className={paid ? 'good' : isPastDue ? 'bad' : ''}>{dollar(q.estPayment)}</span>
+          <span><button className="link-btn" type="button" onClick={() => toggleQuarterlyPaid(paidKey)}>{paid ? 'Paid ✓' : isPastDue ? 'Past due - mark paid' : 'Mark paid'}</button></span>
+        </div>;
+      })}
+    </div>
+  </Panel>;
+}
+
+const BIZ_SETUP_STEPS = [
+  { title: 'Import your business CSV', body: 'On Import Data, drop in the export from your business bank account or card — same drag-and-drop flow as personal, it can be a separate file from your personal statements.' },
+  { title: 'Mark the account as Business', body: 'Open Accounts and click "Mark as Business" on that account. From then on its transactions are pulled out of Personal mode and into Business P&L automatically.' },
+  { title: 'Assign tax categories', body: 'Business transactions keep their bank-guessed category (Groceries, Shopping, etc.) until you recategorize them. Use the "Needs a Tax Category" list here, or Customize mode on Transactions, to assign Schedule C-style categories: Advertising, Contract Labor, Office Expense, Meals (50%), and so on.' },
+  { title: 'Read the P&L', body: 'Business Income minus Business Expenses gives Net Profit for the selected date range. The category breakdown groups your deductible expenses so you can see where the money went.' },
+  { title: 'Set aside for taxes', body: 'The tax set-aside % estimates what to hold back for federal/state/self-employment tax on net profit — it is a rough planning number, not a filing calculation. Adjust the rate to whatever your accountant recommends.' },
+  { title: 'Track invoices', body: 'Log client invoices on the Invoicing tab as you send them, then mark them paid when the money lands. Outstanding and overdue totals update automatically — this is separate from bank transactions, so it works even before you import anything.' },
+  { title: 'Log mileage', body: 'Business driving is not something a bank CSV captures. Log trips on the Mileage tab (date, purpose, miles) and it multiplies by your per-mile rate for a deduction total — check the current IRS standard mileage rate and set it there.' },
+  { title: 'Pay quarterly estimates', body: 'If you expect to owe $1,000+ for the year, the IRS wants payments four times a year, not just at filing. The Quarterly Estimated Taxes table below splits net profit into those periods with real due dates, so nothing sneaks up on you.' },
+  { title: 'Hand off at tax time', body: 'Export P&L CSV on this page for the period your accountant needs (set the date range up top first) — it lists income, every expense category total, and net profit, ready to drop into a spreadsheet or send along.' },
+];
+
+function BizGuide() {
+  return <Panel title="How Business Mode Works">
+    <div className="bank-guides">{BIZ_SETUP_STEPS.map((s, i) => <div className="bank-guide" key={s.title}><b>{i + 1}. {s.title}</b><ol><li>{s.body}</li></ol></div>)}</div>
+  </Panel>;
+}
+
+function Business({ rows, all, filter, taxRate, setTaxRate, setView, setTxFilters, hasBizAccounts, onCategorize, quarterlyPaid, toggleQuarterlyPaid }) {
+  if (!hasBizAccounts) return <div className="view">
+    <Panel title="Business P&L"><div className="empty">No accounts marked as Business yet. Go to Accounts and mark your business bank or card, then come back here — see the setup guide below.</div></Panel>
+    <BizGuide />
+  </div>;
   const exp = expenses(rows).filter((t) => t.category !== 'Owner Draw/Transfer');
   const inc = income(rows);
   const totalIncome = sum(inc, (t) => t.amount);
@@ -230,7 +323,7 @@ function Business({ rows, all, filter, taxRate, setTaxRate, setView, setTxFilter
       <Stat label="Needs a Tax Category" value={String(uncategorized.length)} note="across all time" tone={uncategorized.length ? 'red' : 'green'} />
     </div>
     {uncategorized.length > 0 && <Panel title={`Needs a Tax Category (${uncategorized.length})`}>
-      <p className="save-error">These business transactions still have their original bank category instead of a tax category, so they're left out of the P&L totals below. Assign one to each — it updates live.</p>
+      <p className="save-error">These business transactions are still counted in the totals above, but under their original bank category instead of a tax category — so the breakdown below misattributes them. Assign one to each and it updates live.</p>
       <TransactionsList rows={uncategorized.slice(0, 30)} customizeMode onCategorize={onCategorize} catColors={BIZ_CAT_COLORS} />
       {uncategorized.length > 30 && <p className="save-error">+ {uncategorized.length - 30} more - open Transactions to work through the rest.</p>}
     </Panel>}
@@ -241,7 +334,9 @@ function Business({ rows, all, filter, taxRate, setTaxRate, setView, setTxFilter
         <span>% of net profit for federal / state / self-employment tax</span>
       </div>
     </Panel>
+    <QuarterlyTaxes all={all} taxRate={taxRate} quarterlyPaid={quarterlyPaid} toggleQuarterlyPaid={toggleQuarterlyPaid} />
     <Panel title={`Profit & Loss by Category - ${labelFor(filter)}`}>{!catRows.length ? <div className="empty">No categorized business expenses yet. Assign tax categories to your business charges above.</div> : <CategoryBars rows={catRows} catColors={BIZ_CAT_COLORS} />}</Panel>
+    <BizGuide />
   </div>;
 }
 
@@ -289,6 +384,57 @@ function Invoices({ invoices, addInvoice, updateInvoice, deleteInvoice }) {
           <strong className={inv.status === 'paid' ? 'good' : isOverdue ? 'bad' : ''}>{dollar(inv.amount)}</strong>
         </div>;
       })}</div>}
+    </Panel>
+  </div>;
+}
+
+function Mileage({ mileageLog, mileageRate, setMileageRate, addMileage, deleteMileage }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ date: today, purpose: '', miles: '' });
+  const submit = (e) => {
+    e.preventDefault();
+    const miles = Number(form.miles);
+    if (!form.purpose.trim() || !miles) return;
+    addMileage({ id: `mi-${Date.now()}`, date: form.date, purpose: form.purpose.trim(), miles });
+    setForm({ date: today, purpose: '', miles: '' });
+  };
+  const year = String(new Date().getFullYear());
+  const ytdEntries = mileageLog.filter((m) => m.date?.slice(0, 4) === year);
+  const ytdMiles = sum(ytdEntries, (m) => m.miles);
+  const totalMiles = sum(mileageLog, (m) => m.miles);
+  const exportCsv = () => {
+    const lines = [['Date', 'Purpose', 'Miles', 'Rate', 'Deduction']];
+    [...mileageLog].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((m) => lines.push([m.date, m.purpose, m.miles, mileageRate, (m.miles * mileageRate).toFixed(2)]));
+    downloadCsv(`mileage-log-${year}.csv`, lines);
+  };
+  return <div className="view">
+    <div className="stats small">
+      <Stat label="Miles YTD" value={ytdMiles.toLocaleString()} note={year} tone="blue" />
+      <Stat label="Est. Deduction YTD" value={dollar(ytdMiles * mileageRate)} note={`${mileageLog.length ? `$${mileageRate}/mi` : 'no entries yet'}`} tone="green" />
+      <Stat label="Total Logged" value={`${totalMiles.toLocaleString()} mi`} note="all time" />
+    </div>
+    <Panel title="Rate per Mile" action={<button className="link-btn" type="button" onClick={exportCsv} disabled={!mileageLog.length}>Export Mileage CSV</button>}>
+      <div className="rule-form">
+        <label>$</label>
+        <input type="number" step="0.01" min="0" max="2" value={mileageRate} onChange={(e) => setMileageRate(Math.max(0, Number(e.target.value) || 0))} style={{ width: '5rem' }} />
+        <span>per mile — check the current IRS standard mileage rate and update this if it changes.</span>
+      </div>
+    </Panel>
+    <Panel title="Log a Trip">
+      <form className="rule-form" onSubmit={submit}>
+        <label>Date <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
+        <input placeholder="Purpose (e.g. client meeting, supply run)" value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} style={{ minWidth: '16rem' }} />
+        <input type="number" step="0.1" min="0" placeholder="Miles" value={form.miles} onChange={(e) => setForm({ ...form, miles: e.target.value })} style={{ width: '6rem' }} />
+        <button className="add-btn" type="submit" disabled={!form.purpose.trim() || !Number(form.miles)}>Add trip</button>
+      </form>
+    </Panel>
+    <Panel title={`${mileageLog.length} Logged ${mileageLog.length === 1 ? 'Trip' : 'Trips'}`}>
+      {!mileageLog.length ? <div className="empty">No trips logged yet. Add one above — the IRS wants date, purpose, and miles for each business drive.</div> : <div className="tx-list">{[...mileageLog].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((m) => <div className="tx" key={m.id}>
+        <span className="date">{m.date}</span>
+        <div className="merchant"><b>{m.purpose}</b><small>{m.miles} mi @ ${mileageRate}/mi</small></div>
+        <span className="account invoice-actions"><button className="link-btn" type="button" onClick={() => deleteMileage(m.id)}>delete</button></span>
+        <strong className="good">{dollar(m.miles * mileageRate)}</strong>
+      </div>)}</div>}
     </Panel>
   </div>;
 }
@@ -521,11 +667,11 @@ function Affordability() {
 }
 
 function Goals({ all, rentOverrides, setView, setTxFilters, setFilter }) {
-  const [goals, setGoals] = useState(() => { try { const saved = JSON.parse(localStorage.getItem('mf_goals_v2') || '{}'); return DEFAULT_GOALS.map((g) => ({ ...g, target: saved[g.id] ?? g.target })); } catch { return DEFAULT_GOALS; } });
+  const [goals, setGoals] = useState(() => { try { const saved = JSON.parse(localStorage.getItem(getAppKey('mf_goals_v2')) || '{}'); return DEFAULT_GOALS.map((g) => ({ ...g, target: saved[g.id] ?? g.target })); } catch { return DEFAULT_GOALS; } });
   const [month, setMonth] = useState(months(all)[0] || 'this-month');
   const txs = filterByDate(all, month);
   const actual = (g) => g.type === 'savings_deposit' ? sum(txs.filter((t) => t.account === g.accountId && t.amount > 0), (t) => t.amount) : g.type === 'category' ? sum(expenses(txs).filter((t) => t.category === g.category), (t) => Math.abs(t.amount)) : g.type === 'cash_withdrawal' ? sum(expenses(txs).filter((t) => rentOverrides[t.id] || isCashWithdrawal(t) || g.keywords?.some((k) => (t.merchant || '').toLowerCase().includes(k))), (t) => Math.abs(t.amount)) : sum(expenses(txs).filter((t) => g.keywords?.some((k) => (t.merchant || '').toLowerCase().includes(k))), (t) => Math.abs(t.amount));
-  const edit = (g) => { const raw = prompt(`Monthly target for "${g.label}" ($):`, g.target); const value = Number(raw); if (!Number.isFinite(value) || value < 0) return; const next = goals.map((item) => item.id === g.id ? { ...item, target: value } : item); setGoals(next); localStorage.setItem('mf_goals_v2', JSON.stringify(Object.fromEntries(next.map((item) => [item.id, item.target])))); };
+  const edit = (g) => { const raw = prompt(`Monthly target for "${g.label}" ($):`, g.target); const value = Number(raw); if (!Number.isFinite(value) || value < 0) return; const next = goals.map((item) => item.id === g.id ? { ...item, target: value } : item); setGoals(next); saveAppJson('mf_goals_v2', Object.fromEntries(next.map((item) => [item.id, item.target]))); };
   return <div className="view"><section className="goal-head"><div><h1>Monthly Goals</h1><p>Click a target to edit it. Saved in this browser.</p></div><select value={month} onChange={(e) => setMonth(e.target.value)}>{months(all).slice(0, 18).map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</select></section><div className="stats small"><Stat label="Income" value={dollar(sum(income(txs), (t) => t.amount))} note={labelFor(month)} tone="green" /><Stat label="Spent" value={dollar(sum(expenses(txs), (t) => Math.abs(t.amount)))} note="total expenses" tone="red" /><Stat label="Net Cash Flow" value={`${sum(income(txs), (t) => t.amount) - sum(expenses(txs), (t) => Math.abs(t.amount)) >= 0 ? '+' : '-'}${dollar(Math.abs(sum(income(txs), (t) => t.amount) - sum(expenses(txs), (t) => Math.abs(t.amount))))}`} note="income minus expenses" /></div><Panel title="Goal Tracker"><div className="goals">{goals.map((g) => { const value = actual(g); const pct = g.target > 0 ? Math.min(100, value / g.target * 100) : 0; const openGoalRows = () => { if (g.type === 'cash_withdrawal') { setFilter(month); setTxFilters({ search: '', account: '', category: '', type: 'withdrawal' }); setView('transactions'); } }; return <div key={g.id} className={g.type === 'cash_withdrawal' ? 'goal clickable' : 'goal'} onClick={openGoalRows}><div><i style={{ background: g.color }} /><b>{g.label}</b></div><button onClick={(e) => { e.stopPropagation(); edit(g); }}>Target {dollar(g.target)}</button><strong>{dollar(value)}</strong><span><em style={{ width: `${pct}%`, background: g.color }} /></span></div>; })}</div></Panel></div>;
 }
 
@@ -542,12 +688,18 @@ const BANK_GUIDES = [
   { name: 'Credit Unions & Other Banks', steps: ['Log in → Account History or Statements', 'Look for Export, Download, or CSV link', 'Any CSV with Date, Amount, and Description columns works'] },
 ];
 
-function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingImport, onRestore, onDiscardPending }) {
+function AuthScreen({ onUnlock, error, loading }) {
+  const [password, setPassword] = useState('');
+  return <div className="auth-shell"><div className="auth-card"><h1>{APP_NAME}</h1><p>Enter the password to access your private, synced finance dashboard.</p><form onSubmit={(e) => { e.preventDefault(); onUnlock(password); }}><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoFocus disabled={loading} /><button type="submit" disabled={loading || !password}>{loading ? 'Unlocking…' : 'Unlock'}</button></form>{error ? <p className="auth-error">{error}</p> : null}</div></div>;
+}
+
+function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingImport, onRestore, onDiscardPending, mode }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const chooseFiles = (fileList) => onFiles([...fileList].filter((f) => /\.csv$/i.test(f.name)));
   const hasData = data.transactions.length > 0;
   return <div className="view">
+    {mode === 'business' && <p className="privacy-banner">You're in Business mode. Drop your business bank/card CSV below, then go to Accounts and click "Mark as Business" on it — that's what routes its transactions into Business P&L and Invoicing instead of Personal. Full walkthrough on the Business P&L page.</p>}
     {!hasData && pendingImport && <Panel title="Previous Import Found">
       <div className="empty-actions">
         <p>You have {pendingImport.length} CSV file{pendingImport.length === 1 ? '' : 's'} saved from last time ({pendingImport.map((f) => f.name).join(', ')}).</p>
@@ -560,11 +712,11 @@ function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingIm
     <div className={`dropzone ${dragging ? 'dragging' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); chooseFiles(e.dataTransfer.files); }} onClick={() => inputRef.current?.click()}>
       <Icon name="upload" />
       <b>Drop bank CSV exports here</b>
-      <p>Any bank or credit union — drop one or more CSVs and everything stays in your browser.</p>
+      <p>{AUTH_REQUIRED ? 'Import one or more CSVs to sync them to your private account.' : 'Any bank or credit union — drop one or more CSVs and everything stays in your browser.'}</p>
       <button type="button" className="add-btn" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>Browse files</button>
       <input ref={inputRef} type="file" accept=".csv" multiple hidden onChange={(e) => { chooseFiles(e.target.files); e.target.value = ''; }} />
     </div>
-    <p className="privacy-banner">Everything is parsed in your browser. No account connection, no server upload, no tracking.</p>
+    <p className="privacy-banner">{AUTH_REQUIRED ? 'Everything is parsed in your browser. Your original CSVs are stored in your private Supabase bucket and are never public.' : 'Everything is parsed in your browser. No account connection, no server upload, no tracking.'}</p>
     <Panel title="Quick Start">
       <div className="empty-actions">
         <p style={{ color: hasData ? '#059669' : '#475569' }}>{status}</p>
@@ -588,40 +740,70 @@ export default function App() {
   const [data, setData] = useState({ transactions: [], balances: {}, balanceHistory: {}, accounts: [], failed: [] });
   const [status, setStatus] = useState('No data loaded yet. Import CSVs or load demo data to explore.');
   const [txFilters, setTxFiltersValue] = useState({ search: '', account: '', category: '', type: '' });
-  const [rentOverrides, setRentOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem('mf_rent_tx_v1') || '{}'); } catch { return {}; } });
+  const [rentOverrides, setRentOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem(getAppKey('mf_rent_tx_v1')) || '{}'); } catch { return {}; } });
   const [pendingImport, setPendingImport] = useState(null);
+  const [sourceFiles, setSourceFiles] = useState([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(!AUTH_REQUIRED);
+  const [authReady, setAuthReady] = useState(!AUTH_REQUIRED);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
-  const [theme, setThemeRaw] = useState(() => localStorage.getItem('mf_theme_v1') || 'warm');
-  const setTheme = (next) => { setThemeRaw(next); localStorage.setItem('mf_theme_v1', next); };
+  const [theme, setThemeRaw] = useState(() => localStorage.getItem(getAppKey('mf_theme_v1')) || 'warm');
+  const setTheme = (next) => { setThemeRaw(next); saveAppJson('mf_theme_v1', next); };
   useEffect(() => {
+    document.title = APP_NAME;
     document.documentElement.dataset.theme = theme;
     const href = theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg';
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => { link.href = href; });
   }, [theme]);
 
-  const [mode, setModeRaw] = useState(() => localStorage.getItem('mf_mode_v1') || 'personal');
+  const [mode, setModeRaw] = useState(() => localStorage.getItem(getAppKey('mf_mode_v1')) || 'personal');
   const [bizAccounts, setBizAccounts] = useState(() => loadJson('mf_biz_accounts_v1', {}));
-  const [invoices, setInvoices] = useState(() => { try { const saved = JSON.parse(localStorage.getItem('mf_invoices_v1') || '[]'); return Array.isArray(saved) ? saved : []; } catch { return []; } });
-  const [taxRate, setTaxRateRaw] = useState(() => Number(localStorage.getItem('mf_biz_tax_rate_v1')) || 25);
+  const [invoices, setInvoices] = useState(() => { try { const saved = JSON.parse(localStorage.getItem(getAppKey('mf_invoices_v1')) || '[]'); return Array.isArray(saved) ? saved : []; } catch { return []; } });
+  const [taxRate, setTaxRateRaw] = useState(() => Number(localStorage.getItem(getAppKey('mf_biz_tax_rate_v1'))) || 25);
+  const [mileageLog, setMileageLog] = useState(() => { const saved = loadAppJson('mf_mileage_v1', []); return Array.isArray(saved) ? saved : []; });
+  const [mileageRate, setMileageRateRaw] = useState(() => Number(loadAppJson('mf_mileage_rate_v1', 0.70)) || 0.70);
+  const [quarterlyPaid, setQuarterlyPaid] = useState(() => { const saved = loadAppJson('mf_quarterly_paid_v1', {}); return saved && typeof saved === 'object' ? saved : {}; });
   const setMode = (next) => {
     setModeRaw(next);
-    localStorage.setItem('mf_mode_v1', next);
+    saveAppJson('mf_mode_v1', next);
     const tag = VIEWS.find(([id]) => id === view)?.[3];
     if (tag && tag !== 'shared' && tag !== next) setView(next === 'business' ? 'business' : 'dashboard');
   };
-  const setTaxRate = (next) => { setTaxRateRaw(next); localStorage.setItem('mf_biz_tax_rate_v1', String(next)); };
+  const setTaxRate = (next) => { setTaxRateRaw(next); saveAppJson('mf_biz_tax_rate_v1', String(next)); };
   const toggleBizAccount = (id) => setBizAccounts((prev) => {
     const next = { ...prev };
     if (next[id]) delete next[id]; else next[id] = true;
-    localStorage.setItem('mf_biz_accounts_v1', JSON.stringify(next));
+    saveAppJson('mf_biz_accounts_v1', next);
     return next;
   });
-  const addInvoice = (inv) => setInvoices((prev) => { const next = [...prev, inv]; localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
-  const updateInvoice = (id, patch) => setInvoices((prev) => { const next = prev.map((i) => i.id === id ? { ...i, ...patch } : i); localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
-  const deleteInvoice = (id) => setInvoices((prev) => { const next = prev.filter((i) => i.id !== id); localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
+  const addInvoice = (inv) => setInvoices((prev) => { const next = [...prev, inv]; saveAppJson('mf_invoices_v1', next); return next; });
+  const updateInvoice = (id, patch) => setInvoices((prev) => { const next = prev.map((i) => i.id === id ? { ...i, ...patch } : i); saveAppJson('mf_invoices_v1', next); return next; });
+  const deleteInvoice = (id) => setInvoices((prev) => { const next = prev.filter((i) => i.id !== id); saveAppJson('mf_invoices_v1', next); return next; });
+  const addMileage = (entry) => setMileageLog((prev) => { const next = [...prev, entry]; saveAppJson('mf_mileage_v1', next); return next; });
+  const deleteMileage = (id) => setMileageLog((prev) => { const next = prev.filter((m) => m.id !== id); saveAppJson('mf_mileage_v1', next); return next; });
+  const setMileageRate = (next) => { setMileageRateRaw(next); saveAppJson('mf_mileage_rate_v1', next); };
+  const toggleQuarterlyPaid = (key) => setQuarterlyPaid((prev) => {
+    const next = { ...prev, [key]: !prev[key] };
+    saveAppJson('mf_quarterly_paid_v1', next);
+    return next;
+  });
 
   useEffect(() => {
-    loadStoredFiles().then((files) => { if (files.length) setPendingImport(files); });
+    if (!AUTH_REQUIRED) return undefined;
+    if (!cloudConfigured) {
+      setAuthError('MacyFinance is missing its Supabase deployment settings.');
+      setAuthReady(true);
+      return undefined;
+    }
+    getSession()
+      .then((session) => setIsAuthenticated(Boolean(session)))
+      .catch((err) => setAuthError(err.message))
+      .finally(() => setAuthReady(true));
+    return onAuthStateChange((session) => {
+      setIsAuthenticated(Boolean(session));
+      setAuthReady(true);
+    });
   }, []);
 
   // catOverrides/rules are synced across devices via the raft-sync
@@ -650,30 +832,74 @@ export default function App() {
   useEffect(() => {
     const unsubCat = catStoreRef.current.subscribeToRemoteUpdates((next) => {
       setCatOverridesRaw(next);
-      localStorage.setItem('mf_cat_overrides_v1', JSON.stringify(next));
+      saveAppJson('mf_cat_overrides_v1', next);
     });
     const unsubRules = ruleStoreRef.current.subscribeToRemoteUpdates((next) => {
       const asList = Object.entries(next).map(([keyword, category]) => ({ keyword, category }));
       setRulesRaw(asList);
-      localStorage.setItem('mf_rules_v1', JSON.stringify(asList));
+      saveAppJson('mf_rules_v1', asList);
     });
     return () => { unsubCat(); unsubRules(); };
   }, []);
-  const applyLoaded = (loaded, nextStatus) => {
+  const applyLoaded = (loaded, nextStatus, nextFilter = 'ytd') => {
     setData({ accounts: [], failed: [], ...loaded });
     setStatus(nextStatus || (loaded.failed?.length ? `${loaded.transactions.length.toLocaleString()} transactions loaded - failed: ${loaded.failed.join(', ')}` : `${loaded.transactions.length.toLocaleString()} transactions loaded`));
-    setFilter('ytd');
+    setFilter(nextFilter);
     setTxFiltersValue({ search: '', account: '', category: '', type: '' });
     setView('dashboard');
   };
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    loadStoredFiles()
+      .then(async (files) => {
+        if (!files.length) return;
+        setSourceFiles(files);
+        setPendingImport(files);
+        if (AUTH_REQUIRED) {
+          const cloudFiles = files.map((file) => new File(
+            [file.text],
+            file.name,
+            { type: 'text/csv' },
+          ));
+          const loaded = await loadFromFiles(cloudFiles);
+          applyLoaded(loaded, `${loaded.transactions.length.toLocaleString()} transactions loaded from your private cloud files`);
+          setPendingImport(null);
+        }
+      })
+      .catch((err) => setStatus(`Could not load saved imports: ${err.message}`));
+  }, [isAuthenticated]);
   const loadFiles = async (files) => {
     if (!files.length) return;
     try {
-      const loaded = await loadFromFiles(files);
-      applyLoaded(loaded, loaded.failed?.length ? `${loaded.transactions.length.toLocaleString()} transactions loaded - skipped: ${loaded.failed.join(', ')}` : `${loaded.transactions.length.toLocaleString()} transactions loaded from ${files.length} file${files.length === 1 ? '' : 's'}`);
+      const incoming = await Promise.all(files.map(async (file) => ({
+        name: file.name,
+        text: await file.text(),
+      })));
+      const stored = AUTH_REQUIRED
+        ? [...new Map([...sourceFiles, ...incoming].map((file) => [file.name, file])).values()]
+        : incoming;
+      const filesToParse = stored.map((file) => new File(
+        [file.text],
+        file.name,
+        { type: 'text/csv' },
+      ));
+      const importedFiles = incoming.map((file) => new File(
+        [file.text],
+        file.name,
+        { type: 'text/csv' },
+      ));
+      const imported = AUTH_REQUIRED ? await loadFromFiles(importedFiles) : null;
+      const loaded = AUTH_REQUIRED ? await loadFromFiles(filesToParse) : await loadFromFiles(importedFiles);
+      const importedTransactions = imported?.transactions || loaded.transactions;
+      applyLoaded(
+        loaded,
+        loaded.failed?.length ? `${loaded.transactions.length.toLocaleString()} transactions loaded - skipped: ${loaded.failed.join(', ')}` : `${loaded.transactions.length.toLocaleString()} transactions loaded from ${stored.length} file${stored.length === 1 ? '' : 's'}`,
+        filterForImportedTransactions(importedTransactions),
+      );
       setPendingImport(null);
-      const stored = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
-      saveStoredFiles(stored);
+      setSourceFiles(stored);
+      const storageError = await saveStoredFiles(stored);
+      if (storageError) setStatus(storageError);
     } catch (err) {
       setStatus(err.message);
     }
@@ -684,12 +910,32 @@ export default function App() {
   };
   const discardPendingImport = () => setPendingImport(null);
   const loadDemo = () => applyLoaded(generateDemoData(), 'Demo data loaded');
-  const clearData = () => {
+  const clearData = async () => {
     setData({ transactions: [], balances: {}, balanceHistory: {}, accounts: [], failed: [] });
     setStatus('No data loaded yet. Import CSVs or load demo data to explore.');
     setView('import');
     setPendingImport(null);
-    saveStoredFiles([]);
+    setSourceFiles([]);
+    const storageError = await saveStoredFiles([]);
+    if (storageError) setStatus(storageError);
+  };
+  const unlock = async (password) => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      await signInWithPassword(password);
+    } catch (err) {
+      setAuthError(err.message === 'Invalid login credentials' ? 'Incorrect password.' : err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+  const handleSignOut = async () => {
+    await signOut();
+    setData({ transactions: [], balances: {}, balanceHistory: {}, accounts: [], failed: [] });
+    setPendingImport(null);
+    setSourceFiles([]);
+    setView('import');
   };
   const setRules = (next) => {
     setRulesRaw((prev) => {
@@ -704,12 +950,12 @@ export default function App() {
       }
       return next;
     });
-    localStorage.setItem('mf_rules_v1', JSON.stringify(next));
+    saveAppJson('mf_rules_v1', next);
   };
   const categorize = (id, category) => setCatOverridesRaw((prev) => {
     const next = { ...prev, [id]: category };
     catStoreRef.current.set(id, category);
-    localStorage.setItem('mf_cat_overrides_v1', JSON.stringify(next));
+    saveAppJson('mf_cat_overrides_v1', next);
     return next;
   });
   const transactions = useMemo(() => data.transactions.map((t) => {
@@ -736,12 +982,14 @@ export default function App() {
     const next = { ...prev };
     if (next[id]) delete next[id];
     else next[id] = true;
-    localStorage.setItem('mf_rent_tx_v1', JSON.stringify(next));
+    saveAppJson('mf_rent_tx_v1', next);
     return next;
   });
   const hasData = data.transactions.length > 0;
   const hasBizAccounts = data.accounts.some((a) => bizAccounts[a.id]);
   const modeCatColors = mode === 'business' ? BIZ_CAT_COLORS : CAT_COLORS;
   const activeView = hasData || PUBLIC_VIEWS.has(view) ? view : 'import';
-  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} mode={mode} setMode={setMode} theme={theme} setTheme={setTheme} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>Private by design - all analysis happens in this browser</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content" key={activeView}>{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={personalTransactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={mode === 'business' ? data.accounts.filter((a) => bizAccounts[a.id]) : data.accounts.filter((a) => !bizAccounts[a.id])} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} catColors={modeCatColors} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{activeView === 'accounts' && <Accounts rows={filteredAllAccounts} balances={data.balances} accounts={data.accounts} bizAccounts={bizAccounts} onToggleBiz={toggleBizAccount} />}{hasData && activeView === 'income' && <Income all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={personalTransactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'business' && <Business rows={filtered} all={businessTransactions} filter={filter} taxRate={taxRate} setTaxRate={setTaxRate} setView={setView} setTxFilters={setTxFilters} hasBizAccounts={hasBizAccounts} onCategorize={categorize} />}{activeView === 'invoices' && <Invoices invoices={invoices} addInvoice={addInvoice} updateInvoice={updateInvoice} deleteInvoice={deleteInvoice} />}{activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} catColors={modeCatColors} />}</div></main></div>;
+  if (!authReady) return <div className="auth-shell"><div className="auth-card"><h1>{APP_NAME}</h1><p>Checking your session…</p></div></div>;
+  if (AUTH_REQUIRED && !isAuthenticated) return <AuthScreen onUnlock={unlock} error={authError} loading={authLoading} />;
+  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} mode={mode} setMode={setMode} theme={theme} setTheme={setTheme} onSignOut={AUTH_REQUIRED ? handleSignOut : null} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>{AUTH_REQUIRED ? 'Private by design - encrypted in transit and synced to your account' : 'Private by design - all analysis happens in this browser'}</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content" key={activeView}>{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} mode={mode} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={personalTransactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={mode === 'business' ? data.accounts.filter((a) => bizAccounts[a.id]) : data.accounts.filter((a) => !bizAccounts[a.id])} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} catColors={modeCatColors} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{activeView === 'accounts' && <Accounts rows={filteredAllAccounts} balances={data.balances} accounts={data.accounts} bizAccounts={bizAccounts} onToggleBiz={toggleBizAccount} />}{hasData && activeView === 'income' && <Income all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={personalTransactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'business' && <Business rows={filtered} all={businessTransactions} filter={filter} taxRate={taxRate} setTaxRate={setTaxRate} setView={setView} setTxFilters={setTxFilters} hasBizAccounts={hasBizAccounts} onCategorize={categorize} quarterlyPaid={quarterlyPaid} toggleQuarterlyPaid={toggleQuarterlyPaid} />}{activeView === 'invoices' && <Invoices invoices={invoices} addInvoice={addInvoice} updateInvoice={updateInvoice} deleteInvoice={deleteInvoice} />}{activeView === 'mileage' && <Mileage mileageLog={mileageLog} mileageRate={mileageRate} setMileageRate={setMileageRate} addMileage={addMileage} deleteMileage={deleteMileage} />}{activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} catColors={modeCatColors} />}</div></main></div>;
 }
