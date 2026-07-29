@@ -223,6 +223,63 @@
 .hero-grid b.good { color: #6ee7b7; }
 .hero-grid b.bad { color: #fca5a5; }
 
+.mode-toggle {
+  display: flex;
+  gap: .3rem;
+  margin: 0 .9rem .6rem;
+  padding: .25rem;
+  background: rgba(255, 255, 255, .06);
+  border-radius: .7rem;
+}
+
+.mode-toggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  padding: .5rem 0;
+  border-radius: .5rem;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.mode-toggle button.active {
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  color: #fff;
+}
+
+.biz-toggle {
+  border: 1px solid rgba(37, 99, 235, .3);
+  border-radius: .55rem;
+  background: white;
+  color: #2563eb;
+  padding: .35rem .65rem;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.biz-toggle.active {
+  background: #dbeafe;
+  border-color: rgba(37, 99, 235, .4);
+}
+
+.invoice-status {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.invoice-status.paid { background: #10b981; }
+.invoice-status.overdue { background: #dc2626; }
+
+.invoice-actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+}
+
 .bars button strong { opacity: 0; transition: opacity .16s ease; }
 .bars button:hover strong,
 .bars button:focus-visible strong { opacity: 1; }

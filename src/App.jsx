@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
+import { BIZ_CAT_COLORS, CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
 import { createSyncedStore } from './lib/sync.js';
 import { loadStoredFiles, saveStoredFiles } from './lib/storage.js';
 
+// 4th field tags which mode a view belongs to: 'shared' shows in both
+// Personal and Business mode, otherwise it only shows in the matching mode.
 const VIEWS = [
-  ['dashboard', 'Dashboard', 'grid'],
-  ['transactions', 'Transactions', 'list'],
-  ['categories', 'Categories', 'pie'],
-  ['recurring', 'Recurring', 'repeat'],
-  ['cashflow', 'Cash Flow', 'flow'],
-  ['networth', 'Net Worth', 'trend'],
-  ['accounts', 'Accounts', 'card'],
-  ['income', 'Income & Savings', 'coin'],
-  ['goals', 'Goals', 'target'],
-  ['rules', 'Rules', 'wand'],
-  ['import', 'Import Data', 'upload'],
+  ['dashboard', 'Dashboard', 'grid', 'personal'],
+  ['transactions', 'Transactions', 'list', 'shared'],
+  ['categories', 'Categories', 'pie', 'personal'],
+  ['recurring', 'Recurring', 'repeat', 'personal'],
+  ['cashflow', 'Cash Flow', 'flow', 'personal'],
+  ['networth', 'Net Worth', 'trend', 'personal'],
+  ['accounts', 'Accounts', 'card', 'shared'],
+  ['income', 'Income & Savings', 'coin', 'personal'],
+  ['goals', 'Goals', 'target', 'personal'],
+  ['business', 'Business P&L', 'briefcase', 'business'],
+  ['invoices', 'Invoicing', 'invoice', 'business'],
+  ['rules', 'Rules', 'wand', 'shared'],
+  ['import', 'Import Data', 'upload', 'shared'],
 ];
 
 const DEFAULT_GOALS = [
@@ -25,7 +29,7 @@ const DEFAULT_GOALS = [
   { id: 'subscriptions', label: 'Subscriptions', type: 'keyword', keywords: ['netflix', 'spotify', 'github', 'icloud'], target: 80, color: '#8b5cf6' },
 ];
 
-const PUBLIC_VIEWS = new Set(['import']);
+const PUBLIC_VIEWS = new Set(['import', 'invoices']);
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 const cats = (rows) => {
@@ -114,14 +118,20 @@ function Icon({ name }) {
     wand: <><path d="M15 4V2m0 14v-2m-7-7H6m14 0h-2m-1.8-4.2l1.4-1.4M8.4 8.4L7 7m9.2 1.4l1.4-1.4M4 20l8-8" /></>,
     home: <><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M9 20v-6h6v6" /></>,
     upload: <><path d="M12 16V4m0 0l-4 4m4-4l4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>,
+    briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
+    invoice: <><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v4h4" /><path d="M9 12h6M9 16h6M9 9h2" /></>,
   };
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-function Sidebar({ view, setView, status }) {
+function Sidebar({ view, setView, status, mode, setMode }) {
   return <aside className="sidebar">
     <div className="brand"><img className="brand-mark" src="/favicon.svg" alt="" /><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
-    <nav>{VIEWS.map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
+    <div className="mode-toggle">
+      <button className={mode === 'personal' ? 'active' : ''} onClick={() => setMode('personal')} type="button">Personal</button>
+      <button className={mode === 'business' ? 'active' : ''} onClick={() => setMode('business')} type="button">Business</button>
+    </div>
+    <nav>{VIEWS.filter(([, , , tag]) => tag === 'shared' || tag === mode).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
     <p>{status}</p>
   </aside>;
 }
@@ -134,15 +144,15 @@ function Panel({ title, action, children }) {
   return <section className="panel"><header><h2>{title}</h2>{action}</header>{children}</section>;
 }
 
-function TransactionsList({ rows, rentOverrides = {}, onToggleRent, customizeMode = false, onCategorize }) {
+function TransactionsList({ rows, rentOverrides = {}, onToggleRent, customizeMode = false, onCategorize, catColors = CAT_COLORS }) {
   if (!rows.length) return <div className="empty">No transactions for this period.</div>;
-  const catOptions = Object.keys(CAT_COLORS);
+  const catOptions = Object.keys(catColors);
   return <div className="tx-list">{rows.map((t) => {
     const markedRent = Boolean(rentOverrides[t.id]);
     const canMarkRent = markedRent || isCashWithdrawal(t) || t.category === 'Cash Withdrawals';
     return <div className={`tx ${customizeMode ? 'editable' : ''}`} key={t.id}>
     <span className="date">{fmtDate(t.date)}</span>
-    <div className="merchant"><b>{t.merchant || 'Unknown merchant'}</b><small><i style={{ background: markedRent ? '#ef4444' : CAT_COLORS[t.category] || CAT_COLORS.Other }} />
+    <div className="merchant"><b>{t.merchant || 'Unknown merchant'}</b><small><i style={{ background: markedRent ? '#ef4444' : catColors[t.category] || CAT_COLORS.Other }} />
       {customizeMode && onCategorize
         ? <select className="cat-select" title="Change category" value={t.category} onChange={(e) => onCategorize(t.id, e.target.value)}>{(catOptions.includes(t.category) ? catOptions : [t.category, ...catOptions]).map((c) => <option key={c}>{c}</option>)}</select>
         : markedRent ? 'Rent' : t.category}
@@ -159,9 +169,120 @@ function Bars({ rows, color = '#2563eb', onPick }) {
   return <div className="bars">{rows.map((r) => <button key={r.label} onClick={() => onPick?.(r)} title={`${r.label}: ${dollar(r.value)}`}><strong>{dollar(r.value)}</strong><div><i style={{ height: `${Math.max(4, r.value / max * 100)}%`, background: color }} /></div><span>{r.label}</span></button>)}</div>;
 }
 
-function CategoryBars({ rows }) {
+function CategoryBars({ rows, catColors = CAT_COLORS }) {
   const total = rows.reduce((s, [, v]) => s + v, 0) || 1;
-  return <div className="cat-bars">{rows.map(([cat, amount]) => <div key={cat} className="cat-row"><div><i style={{ background: CAT_COLORS[cat] || CAT_COLORS.Other }} /><b>{cat}</b></div><strong>{dollar(amount)}</strong><span><em style={{ width: `${amount / total * 100}%`, background: CAT_COLORS[cat] || CAT_COLORS.Other }} /></span></div>)}</div>;
+  return <div className="cat-bars">{rows.map(([cat, amount]) => <div key={cat} className="cat-row"><div><i style={{ background: catColors[cat] || CAT_COLORS.Other }} /><b>{cat}</b></div><strong>{dollar(amount)}</strong><span><em style={{ width: `${amount / total * 100}%`, background: catColors[cat] || CAT_COLORS.Other }} /></span></div>)}</div>;
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function bizCats(rows) {
+  const map = new Map();
+  expenses(rows).filter((t) => t.category !== 'Owner Draw/Transfer').forEach((t) => {
+    map.set(t.category, (map.get(t.category) || 0) + Math.abs(t.amount));
+  });
+  return [...map.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+const BIZ_CATEGORY_SET = new Set(Object.keys(BIZ_CAT_COLORS));
+const needsTaxCategory = (t) => !BIZ_CATEGORY_SET.has(t.category);
+
+function Business({ rows, all, filter, taxRate, setTaxRate, setView, setTxFilters, hasBizAccounts, onCategorize }) {
+  if (!hasBizAccounts) return <div className="view"><Panel title="Business P&L"><div className="empty">No accounts marked as Business yet. Go to Accounts and mark your business bank or card, then come back here.</div></Panel></div>;
+  const exp = expenses(rows).filter((t) => t.category !== 'Owner Draw/Transfer');
+  const inc = income(rows);
+  const totalIncome = sum(inc, (t) => t.amount);
+  const totalExpenses = sum(exp, (t) => Math.abs(t.amount));
+  const netProfit = totalIncome - totalExpenses;
+  const catRows = bizCats(rows);
+  const setAside = netProfit > 0 ? netProfit * taxRate / 100 : 0;
+  const uncategorized = all.filter(needsTaxCategory).sort((a, b) => b.date - a.date);
+  const exportCsv = () => {
+    const lines = [['Category', 'Amount']];
+    lines.push(['Business Income', totalIncome.toFixed(2)]);
+    catRows.forEach(([c, v]) => lines.push([c, (-v).toFixed(2)]));
+    lines.push(['Net Profit', netProfit.toFixed(2)]);
+    downloadCsv(`business-pl-${labelFor(filter).replace(/\s+/g, '-').toLowerCase()}.csv`, lines);
+  };
+  return <div className="view">
+    <div className="stats">
+      <Stat label="Business Income" value={dollar(totalIncome)} note={labelFor(filter)} tone="green" onClick={() => { setTxFilters({ search: '', account: '', category: '', type: 'income' }); setView('transactions'); }} />
+      <Stat label="Business Expenses" value={dollar(totalExpenses)} note={labelFor(filter)} tone="red" onClick={() => { setTxFilters({ search: '', account: '', category: '', type: 'expense' }); setView('transactions'); }} />
+      <Stat label="Net Profit" value={`${netProfit >= 0 ? '+' : '-'}${dollar(Math.abs(netProfit))}`} note="income minus expenses" tone={netProfit >= 0 ? 'green' : 'red'} />
+      <Stat label="Est. Tax Set-Aside" value={dollar(setAside)} note={`${taxRate}% of net profit`} tone="purple" />
+      <Stat label="Needs a Tax Category" value={String(uncategorized.length)} note="across all time" tone={uncategorized.length ? 'red' : 'green'} />
+    </div>
+    {uncategorized.length > 0 && <Panel title={`Needs a Tax Category (${uncategorized.length})`}>
+      <p className="save-error">These business transactions still have their original bank category instead of a tax category, so they're left out of the P&L totals below. Assign one to each — it updates live.</p>
+      <TransactionsList rows={uncategorized.slice(0, 30)} customizeMode onCategorize={onCategorize} catColors={BIZ_CAT_COLORS} />
+      {uncategorized.length > 30 && <p className="save-error">+ {uncategorized.length - 30} more - open Transactions to work through the rest.</p>}
+    </Panel>}
+    <Panel title="Tax Set-Aside Rate" action={<button className="link-btn" type="button" onClick={exportCsv}>Export P&L CSV</button>}>
+      <div className="rule-form">
+        <label>Set aside</label>
+        <input type="number" min="0" max="60" value={taxRate} onChange={(e) => setTaxRate(Math.max(0, Math.min(60, Number(e.target.value) || 0)))} style={{ width: '4.5rem' }} />
+        <span>% of net profit for federal / state / self-employment tax</span>
+      </div>
+    </Panel>
+    <Panel title={`Profit & Loss by Category - ${labelFor(filter)}`}>{!catRows.length ? <div className="empty">No categorized business expenses yet. Assign tax categories to your business charges above.</div> : <CategoryBars rows={catRows} catColors={BIZ_CAT_COLORS} />}</Panel>
+  </div>;
+}
+
+function Invoices({ invoices, addInvoice, updateInvoice, deleteInvoice }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ client: '', description: '', amount: '', issueDate: today, dueDate: '' });
+  const submit = (e) => {
+    e.preventDefault();
+    const amount = Number(form.amount);
+    if (!form.client.trim() || !amount) return;
+    addInvoice({ id: `inv-${Date.now()}`, client: form.client.trim(), description: form.description.trim(), amount, issueDate: form.issueDate, dueDate: form.dueDate, status: 'unpaid', paidDate: null });
+    setForm({ client: '', description: '', amount: '', issueDate: today, dueDate: '' });
+  };
+  const outstanding = sum(invoices.filter((i) => i.status !== 'paid'), (i) => i.amount);
+  const paidYtd = sum(invoices.filter((i) => i.status === 'paid' && i.paidDate?.slice(0, 4) === String(new Date().getFullYear())), (i) => i.amount);
+  const overdue = invoices.filter((i) => i.status !== 'paid' && i.dueDate && i.dueDate < today);
+  return <div className="view">
+    <div className="stats small">
+      <Stat label="Outstanding" value={dollar(outstanding)} note={`${invoices.filter((i) => i.status !== 'paid').length} unpaid`} tone="red" />
+      <Stat label="Paid YTD" value={dollar(paidYtd)} note={String(new Date().getFullYear())} tone="green" />
+      <Stat label="Overdue" value={String(overdue.length)} note="past due date" tone={overdue.length ? 'red' : 'blue'} />
+    </div>
+    <Panel title="New Invoice">
+      <form className="rule-form" onSubmit={submit}>
+        <input placeholder="Client name" value={form.client} onChange={(e) => setForm({ ...form, client: e.target.value })} />
+        <input placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <input type="number" step="0.01" min="0" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} style={{ width: '7rem' }} />
+        <label>Issued <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} /></label>
+        <label>Due <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></label>
+        <button className="add-btn" type="submit" disabled={!form.client.trim() || !Number(form.amount)}>Add invoice</button>
+      </form>
+    </Panel>
+    <Panel title={`${invoices.length} ${invoices.length === 1 ? 'Invoice' : 'Invoices'}`}>
+      {!invoices.length ? <div className="empty">No invoices yet. Add one above to start tracking what clients owe you.</div> : <div className="tx-list">{[...invoices].sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '')).map((inv) => {
+        const isOverdue = inv.status !== 'paid' && inv.dueDate && inv.dueDate < today;
+        return <div className="tx" key={inv.id}>
+          <span className="date">{inv.issueDate}</span>
+          <div className="merchant"><b>{inv.client}</b><small><i className={`invoice-status ${inv.status}${isOverdue ? ' overdue' : ''}`} />{inv.description || (isOverdue ? 'Overdue' : inv.status === 'paid' ? `Paid ${inv.paidDate}` : inv.dueDate ? `Due ${inv.dueDate}` : 'No due date')}</small></div>
+          <span className="account invoice-actions">
+            {inv.status === 'paid'
+              ? <button className="link-btn" type="button" onClick={() => updateInvoice(inv.id, { status: 'unpaid', paidDate: null })}>Mark unpaid</button>
+              : <button className="link-btn" type="button" onClick={() => updateInvoice(inv.id, { status: 'paid', paidDate: today })}>Mark paid</button>}
+            <button className="link-btn" type="button" onClick={() => deleteInvoice(inv.id)}>delete</button>
+          </span>
+          <strong className={inv.status === 'paid' ? 'good' : isOverdue ? 'bad' : ''}>{dollar(inv.amount)}</strong>
+        </div>;
+      })}</div>}
+    </Panel>
+  </div>;
 }
 
 function Heatmap({ all, setFilter, setTxFilters, setView }) {
@@ -220,14 +341,14 @@ function Dashboard({ all, rows, balances, accounts, setView, setFilter, setTxFil
   </div>;
 }
 
-function Transactions({ rows, filters, setFilters, accounts, rentOverrides, onToggleRent, onCategorize }) {
+function Transactions({ rows, filters, setFilters, accounts, rentOverrides, onToggleRent, onCategorize, catColors = CAT_COLORS }) {
   const [page, setPage] = useState(0);
   const [customizeMode, setCustomizeMode] = useState(false);
   const filtered = rows.filter((t) => (!filters.search || (t.merchant || '').toLowerCase().includes(filters.search.toLowerCase())) && (!filters.account || t.account === filters.account) && (!filters.category || t.category === filters.category) && (!filters.type || (filters.type === 'withdrawal' ? isCashWithdrawal(t) || t.category === 'Cash Withdrawals' : t.type === filters.type)));
   const catsList = [...new Set(rows.map((t) => t.category))].sort();
   const pageRows = filtered.slice(page * 50, page * 50 + 50);
   useEffect(() => setPage(0), [filters, rows]);
-  return <div className="view"><section className="filters"><input placeholder="Search merchant..." value={filters.search} onChange={(e) => setFilters({ search: e.target.value })} /><select value={filters.account} onChange={(e) => setFilters({ account: e.target.value })}><option value="">All Accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><select value={filters.category} onChange={(e) => setFilters({ category: e.target.value })}><option value="">All Categories</option>{catsList.map((c) => <option key={c}>{c}</option>)}</select><select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })}><option value="">All Types</option><option value="expense">Expenses</option><option value="withdrawal">Withdrawals</option><option value="income">Income</option><option value="investment">Investments</option><option value="payment">Payments</option></select></section><Panel title={`${filtered.length.toLocaleString()} Transactions`} action={<button className={customizeMode ? 'customize-toggle active' : 'customize-toggle'} onClick={() => setCustomizeMode(!customizeMode)}>{customizeMode ? 'Done' : 'Customize'}</button>}><TransactionsList rows={pageRows} rentOverrides={rentOverrides} onToggleRent={onToggleRent} customizeMode={customizeMode} onCategorize={onCategorize} /><div className="pager"><span>Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / 50))}</span><div><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</button><button disabled={page >= Math.ceil(filtered.length / 50) - 1} onClick={() => setPage(page + 1)}>Next</button></div></div></Panel></div>;
+  return <div className="view"><section className="filters"><input placeholder="Search merchant..." value={filters.search} onChange={(e) => setFilters({ search: e.target.value })} /><select value={filters.account} onChange={(e) => setFilters({ account: e.target.value })}><option value="">All Accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select><select value={filters.category} onChange={(e) => setFilters({ category: e.target.value })}><option value="">All Categories</option>{catsList.map((c) => <option key={c}>{c}</option>)}</select><select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })}><option value="">All Types</option><option value="expense">Expenses</option><option value="withdrawal">Withdrawals</option><option value="income">Income</option><option value="investment">Investments</option><option value="payment">Payments</option></select></section><Panel title={`${filtered.length.toLocaleString()} Transactions`} action={<button className={customizeMode ? 'customize-toggle active' : 'customize-toggle'} onClick={() => setCustomizeMode(!customizeMode)}>{customizeMode ? 'Done' : 'Customize'}</button>}><TransactionsList rows={pageRows} rentOverrides={rentOverrides} onToggleRent={onToggleRent} customizeMode={customizeMode} onCategorize={onCategorize} catColors={catColors} /><div className="pager"><span>Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / 50))}</span><div><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prev</button><button disabled={page >= Math.ceil(filtered.length / 50) - 1} onClick={() => setPage(page + 1)}>Next</button></div></div></Panel></div>;
 }
 
 function Categories({ rows, setView, setTxFilters }) {
@@ -269,8 +390,8 @@ function Categories({ rows, setView, setTxFilters }) {
   </div>;
 }
 
-function Accounts({ rows, balances, accounts }) {
-  return <div className="accounts">{accounts.map((a) => { const txs = rows.filter((t) => t.account === a.id); const spent = sum(expenses(txs), (t) => Math.abs(t.amount)); const earned = sum(income(txs), (t) => Math.abs(t.amount)); return <Panel key={a.id} title={a.name}><div className="acct" style={{ borderColor: a.color }}><div><b>{balances[a.id] !== undefined ? dollar(balances[a.id]) : `-${dollar(spent)}`}</b><small>{a.bank} - {a.type.replace('_', ' ')}</small></div><p><span className="good">+{dollar(earned)} in</span><span className="bad">-{dollar(spent)} out</span></p></div><TransactionsList rows={txs.slice(0, 5)} /></Panel>; })}</div>;
+function Accounts({ rows, balances, accounts, bizAccounts = {}, onToggleBiz }) {
+  return <div className="accounts">{accounts.map((a) => { const txs = rows.filter((t) => t.account === a.id); const spent = sum(expenses(txs), (t) => Math.abs(t.amount)); const earned = sum(income(txs), (t) => Math.abs(t.amount)); const isBiz = Boolean(bizAccounts[a.id]); return <Panel key={a.id} title={a.name} action={onToggleBiz ? <button className={isBiz ? 'biz-toggle active' : 'biz-toggle'} type="button" onClick={() => onToggleBiz(a.id)}>{isBiz ? 'Business' : 'Mark as Business'}</button> : null}><div className="acct" style={{ borderColor: a.color }}><div><b>{balances[a.id] !== undefined ? dollar(balances[a.id]) : `-${dollar(spent)}`}</b><small>{a.bank} - {a.type.replace('_', ' ')}</small></div><p><span className="good">+{dollar(earned)} in</span><span className="bad">-{dollar(spent)} out</span></p></div><TransactionsList rows={txs.slice(0, 5)} catColors={isBiz ? BIZ_CAT_COLORS : CAT_COLORS} /></Panel>; })}</div>;
 }
 
 function Income({ all, setView, setTxFilters }) {
@@ -334,9 +455,10 @@ function NetWorth({ history, accounts }) {
   return <div className="view"><div className="stats small"><Stat label="Current net cash" value={dollar(current)} note={`across ${tracked.length} tracked accounts`} tone={current >= 0 ? 'green' : 'red'} /><Stat label="1-month change" value={change === null ? '-' : `${change >= 0 ? '+' : '-'}${dollar(Math.abs(change))}`} note="vs. prior month-end" tone={change === null || change >= 0 ? 'green' : 'red'} /><Stat label="Months tracked" value={String(series.length)} note="from statement balances" /></div><Panel title="Month-End Net Cash"><Bars rows={recent.map((r) => ({ ...r, value: Math.abs(r.value) }))} color="#14b8a6" /></Panel><Panel title="By Account (latest month-end)"><div className="tx-list">{tracked.map((a) => { const ms = Object.keys(history[a.id]).sort(); const last = ms[ms.length - 1]; const bal = history[a.id][last]; return <div className="tx" key={a.id}><span className="date">{last}</span><div className="merchant"><b>{a.name}</b><small><i style={{ background: a.color }} />{a.type.replace('_', ' ')}</small></div><span className="account" /><strong className={a.type === 'credit_card' ? 'bad' : 'good'}>{a.type === 'credit_card' ? '-' : ''}{dollar(bal)}</strong></div>; })}</div></Panel></div>;
 }
 
-function Rules({ rules, setRules, transactions }) {
+function Rules({ rules, setRules, transactions, catColors = CAT_COLORS }) {
   const [keyword, setKeyword] = useState('');
-  const [category, setCategory] = useState('Food & Dining');
+  const [category, setCategory] = useState(Object.keys(catColors)[0]);
+  useEffect(() => { if (!Object.keys(catColors).includes(category)) setCategory(Object.keys(catColors)[0]); }, [catColors]);
   const matches = (kw) => transactions.filter((t) => (t.merchant || '').toLowerCase().includes(kw)).length;
   const add = (e) => {
     e.preventDefault();
@@ -345,7 +467,7 @@ function Rules({ rules, setRules, transactions }) {
     setRules([...rules.filter((r) => r.keyword !== kw), { keyword: kw, category }]);
     setKeyword('');
   };
-  return <div className="view"><section className="goal-head"><div><h1>Categorization Rules</h1><p>Your rules run before built-in categories and apply to every statement row.</p></div></section><Panel title="Add a Rule"><form className="rule-form" onSubmit={add}><input placeholder='Merchant contains... (e.g. "costco")' value={keyword} onChange={(e) => setKeyword(e.target.value)} /><span>-&gt;</span><select value={category} onChange={(e) => setCategory(e.target.value)}>{Object.keys(CAT_COLORS).map((c) => <option key={c}>{c}</option>)}</select><button className="add-btn" type="submit" disabled={!keyword.trim()}>Add rule</button>{keyword.trim() && <small>{matches(keyword.trim().toLowerCase())} matching transactions</small>}</form></Panel><Panel title={`${rules.length} Active ${rules.length === 1 ? 'Rule' : 'Rules'}`}>{!rules.length ? <div className="empty">No custom rules yet. Add one above to reclassify merchants automatically.</div> : <div className="tx-list">{rules.map((r) => <div className="tx" key={r.keyword}><span className="date">{matches(r.keyword)} matches</span><div className="merchant"><b>"{r.keyword}"</b><small><i style={{ background: CAT_COLORS[r.category] || CAT_COLORS.Other }} />{r.category}</small></div><span className="account" /><button className="link-btn" onClick={() => setRules(rules.filter((x) => x.keyword !== r.keyword))}>remove</button></div>)}</div>}</Panel></div>;
+  return <div className="view"><section className="goal-head"><div><h1>Categorization Rules</h1><p>Your rules run before built-in categories and apply to every statement row.</p></div></section><Panel title="Add a Rule"><form className="rule-form" onSubmit={add}><input placeholder='Merchant contains... (e.g. "costco")' value={keyword} onChange={(e) => setKeyword(e.target.value)} /><span>-&gt;</span><select value={category} onChange={(e) => setCategory(e.target.value)}>{Object.keys(catColors).map((c) => <option key={c}>{c}</option>)}</select><button className="add-btn" type="submit" disabled={!keyword.trim()}>Add rule</button>{keyword.trim() && <small>{matches(keyword.trim().toLowerCase())} matching transactions</small>}</form></Panel><Panel title={`${rules.length} Active ${rules.length === 1 ? 'Rule' : 'Rules'}`}>{!rules.length ? <div className="empty">No custom rules yet. Add one above to reclassify merchants automatically.</div> : <div className="tx-list">{rules.map((r) => <div className="tx" key={r.keyword}><span className="date">{matches(r.keyword)} matches</span><div className="merchant"><b>"{r.keyword}"</b><small><i style={{ background: catColors[r.category] || CAT_COLORS.Other }} />{r.category}</small></div><span className="account" /><button className="link-btn" onClick={() => setRules(rules.filter((x) => x.keyword !== r.keyword))}>remove</button></div>)}</div>}</Panel></div>;
 }
 
 function mortgagePayment(principal, annualRate, years = 30) {
@@ -461,6 +583,27 @@ export default function App() {
   const [rentOverrides, setRentOverrides] = useState(() => { try { return JSON.parse(localStorage.getItem('mf_rent_tx_v1') || '{}'); } catch { return {}; } });
   const [pendingImport, setPendingImport] = useState(null);
 
+  const [mode, setModeRaw] = useState(() => localStorage.getItem('mf_mode_v1') || 'personal');
+  const [bizAccounts, setBizAccounts] = useState(() => loadJson('mf_biz_accounts_v1', {}));
+  const [invoices, setInvoices] = useState(() => { try { const saved = JSON.parse(localStorage.getItem('mf_invoices_v1') || '[]'); return Array.isArray(saved) ? saved : []; } catch { return []; } });
+  const [taxRate, setTaxRateRaw] = useState(() => Number(localStorage.getItem('mf_biz_tax_rate_v1')) || 25);
+  const setMode = (next) => {
+    setModeRaw(next);
+    localStorage.setItem('mf_mode_v1', next);
+    const tag = VIEWS.find(([id]) => id === view)?.[3];
+    if (tag && tag !== 'shared' && tag !== next) setView(next === 'business' ? 'business' : 'dashboard');
+  };
+  const setTaxRate = (next) => { setTaxRateRaw(next); localStorage.setItem('mf_biz_tax_rate_v1', String(next)); };
+  const toggleBizAccount = (id) => setBizAccounts((prev) => {
+    const next = { ...prev };
+    if (next[id]) delete next[id]; else next[id] = true;
+    localStorage.setItem('mf_biz_accounts_v1', JSON.stringify(next));
+    return next;
+  });
+  const addInvoice = (inv) => setInvoices((prev) => { const next = [...prev, inv]; localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
+  const updateInvoice = (id, patch) => setInvoices((prev) => { const next = prev.map((i) => i.id === id ? { ...i, ...patch } : i); localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
+  const deleteInvoice = (id) => setInvoices((prev) => { const next = prev.filter((i) => i.id !== id); localStorage.setItem('mf_invoices_v1', JSON.stringify(next)); return next; });
+
   useEffect(() => {
     loadStoredFiles().then((files) => { if (files.length) setPendingImport(files); });
   }, []);
@@ -564,7 +707,11 @@ export default function App() {
     else if (t.amount < 0) type = 'expense';
     return { ...t, category, type };
   }), [data.transactions, catOverrides, rules]);
-  const filtered = useMemo(() => filterByDate(transactions, filter), [transactions, filter]);
+  const personalTransactions = useMemo(() => transactions.filter((t) => !bizAccounts[t.account]), [transactions, bizAccounts]);
+  const businessTransactions = useMemo(() => transactions.filter((t) => bizAccounts[t.account]), [transactions, bizAccounts]);
+  const modeTransactions = mode === 'business' ? businessTransactions : personalTransactions;
+  const filtered = useMemo(() => filterByDate(modeTransactions, filter), [modeTransactions, filter]);
+  const filteredAllAccounts = useMemo(() => filterByDate(transactions, filter), [transactions, filter]);
   const monthList = useMemo(() => months(transactions), [transactions]);
   const setTxFilters = (patch) => setTxFiltersValue((prev) => ({ ...prev, ...patch }));
   const custom = filter.startsWith('custom:') ? filter.split(':') : null;
@@ -577,6 +724,8 @@ export default function App() {
     return next;
   });
   const hasData = data.transactions.length > 0;
+  const hasBizAccounts = data.accounts.some((a) => bizAccounts[a.id]);
+  const modeCatColors = mode === 'business' ? BIZ_CAT_COLORS : CAT_COLORS;
   const activeView = hasData || PUBLIC_VIEWS.has(view) ? view : 'import';
-  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>Private by design - all analysis happens in this browser</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content">{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={transactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={data.accounts} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{hasData && activeView === 'accounts' && <Accounts rows={filtered} balances={data.balances} accounts={data.accounts} />}{hasData && activeView === 'income' && <Income all={transactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={transactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} />}</div></main></div>;
+  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} mode={mode} setMode={setMode} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>Private by design - all analysis happens in this browser</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content" key={activeView}>{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={personalTransactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={mode === 'business' ? data.accounts.filter((a) => bizAccounts[a.id]) : data.accounts.filter((a) => !bizAccounts[a.id])} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} catColors={modeCatColors} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{activeView === 'accounts' && <Accounts rows={filteredAllAccounts} balances={data.balances} accounts={data.accounts} bizAccounts={bizAccounts} onToggleBiz={toggleBizAccount} />}{hasData && activeView === 'income' && <Income all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={personalTransactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'business' && <Business rows={filtered} all={businessTransactions} filter={filter} taxRate={taxRate} setTaxRate={setTaxRate} setView={setView} setTxFilters={setTxFilters} hasBizAccounts={hasBizAccounts} onCategorize={categorize} />}{activeView === 'invoices' && <Invoices invoices={invoices} addInvoice={addInvoice} updateInvoice={updateInvoice} deleteInvoice={deleteInvoice} />}{activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} catColors={modeCatColors} />}</div></main></div>;
 }

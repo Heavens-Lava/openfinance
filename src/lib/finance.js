@@ -21,6 +21,29 @@ export const CAT_COLORS = {
   Other: '#94a3b8',
 };
 
+// Schedule C-style categories for transactions on accounts flagged as business.
+export const BIZ_CAT_COLORS = {
+  'Business Income': '#10b981',
+  Advertising: '#ec4899',
+  'Car & Truck': '#f59e0b',
+  'Commissions & Fees': '#a855f7',
+  'Contract Labor': '#8b5cf6',
+  Insurance: '#0ea5e9',
+  'Legal & Professional': '#6366f1',
+  'Office Expense': '#3b82f6',
+  Rent: '#ef4444',
+  'Repairs & Maintenance': '#f97316',
+  'Software & Subscriptions': '#06b6d4',
+  Supplies: '#22c55e',
+  'Taxes & Licenses': '#64748b',
+  Travel: '#14b8a6',
+  'Meals (50%)': '#eab308',
+  Utilities: '#dc2626',
+  'Bank & Merchant Fees': '#94a3b8',
+  'Owner Draw/Transfer': '#6b7280',
+  'Other Business Expense': '#a3a3a3',
+};
+
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const ACCOUNT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#14b8a6', '#ef4444', '#ec4899', '#f97316', '#a855f7'];
