@@ -4,21 +4,21 @@ import Papa from 'papaparse';
 export let ACCOUNTS = [];
 
 export const CAT_COLORS = {
-  'Food & Dining': '#f97316',
-  'Gas & Transport': '#06b6d4',
-  Groceries: '#22c55e',
-  Shopping: '#a855f7',
-  'Bills & Utilities': '#ef4444',
-  Entertainment: '#ec4899',
-  Health: '#14b8a6',
-  Education: '#3b82f6',
-  Investments: '#7c3aed',
-  AI: '#0ea5e9',
-  'Cash Withdrawals': '#f59e0b',
-  Income: '#10b981',
-  'Payment/Transfer': '#6b7280',
-  Auto: '#f59e0b',
-  Other: '#94a3b8',
+  'Food & Dining': 'var(--cat-food)',
+  'Gas & Transport': 'var(--cat-gas)',
+  Groceries: 'var(--cat-groceries)',
+  Shopping: 'var(--cat-shopping)',
+  'Bills & Utilities': 'var(--cat-bills)',
+  Entertainment: 'var(--cat-entertainment)',
+  Health: 'var(--cat-health)',
+  Education: 'var(--cat-education)',
+  Investments: 'var(--cat-investments)',
+  AI: 'var(--cat-ai)',
+  'Cash Withdrawals': 'var(--cat-cash)',
+  Income: 'var(--cat-income)',
+  'Payment/Transfer': 'var(--cat-transfer)',
+  Auto: 'var(--cat-auto)',
+  Other: 'var(--cat-other)',
 };
 
 // Schedule C-style categories for transactions on accounts flagged as business.
