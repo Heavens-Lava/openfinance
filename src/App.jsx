@@ -165,7 +165,7 @@ function TransactionsList({ rows, rentOverrides = {}, onToggleRent, customizeMod
   })}</div>;
 }
 
-function Bars({ rows, color = '#2563eb', onPick }) {
+function Bars({ rows, color = 'var(--accent)', onPick }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return <div className="bars">{rows.map((r) => <button key={r.label} onClick={() => onPick?.(r)} title={`${r.label}: ${dollar(r.value)}`}><strong>{dollar(r.value)}</strong><div><i style={{ height: `${Math.max(4, r.value / max * 100)}%`, background: color }} /></div><span>{r.label}</span></button>)}</div>;
 }
@@ -453,7 +453,7 @@ function NetWorth({ history, accounts }) {
   const current = series[series.length - 1]?.value ?? 0;
   const prev = series[series.length - 2]?.value;
   const change = prev !== undefined ? current - prev : null;
-  return <div className="view"><div className="stats small"><Stat label="Current net cash" value={dollar(current)} note={`across ${tracked.length} tracked accounts`} tone={current >= 0 ? 'green' : 'red'} /><Stat label="1-month change" value={change === null ? '-' : `${change >= 0 ? '+' : '-'}${dollar(Math.abs(change))}`} note="vs. prior month-end" tone={change === null || change >= 0 ? 'green' : 'red'} /><Stat label="Months tracked" value={String(series.length)} note="from statement balances" /></div><Panel title="Month-End Net Cash"><Bars rows={recent.map((r) => ({ ...r, value: Math.abs(r.value) }))} color="#14b8a6" /></Panel><Panel title="By Account (latest month-end)"><div className="tx-list">{tracked.map((a) => { const ms = Object.keys(history[a.id]).sort(); const last = ms[ms.length - 1]; const bal = history[a.id][last]; return <div className="tx" key={a.id}><span className="date">{last}</span><div className="merchant"><b>{a.name}</b><small><i style={{ background: a.color }} />{a.type.replace('_', ' ')}</small></div><span className="account" /><strong className={a.type === 'credit_card' ? 'bad' : 'good'}>{a.type === 'credit_card' ? '-' : ''}{dollar(bal)}</strong></div>; })}</div></Panel></div>;
+  return <div className="view"><div className="stats small"><Stat label="Current net cash" value={dollar(current)} note={`across ${tracked.length} tracked accounts`} tone={current >= 0 ? 'green' : 'red'} /><Stat label="1-month change" value={change === null ? '-' : `${change >= 0 ? '+' : '-'}${dollar(Math.abs(change))}`} note="vs. prior month-end" tone={change === null || change >= 0 ? 'green' : 'red'} /><Stat label="Months tracked" value={String(series.length)} note="from statement balances" /></div><Panel title="Month-End Net Cash"><Bars rows={recent.map((r) => ({ ...r, value: Math.abs(r.value) }))} color="var(--accent-2)" /></Panel><Panel title="By Account (latest month-end)"><div className="tx-list">{tracked.map((a) => { const ms = Object.keys(history[a.id]).sort(); const last = ms[ms.length - 1]; const bal = history[a.id][last]; return <div className="tx" key={a.id}><span className="date">{last}</span><div className="merchant"><b>{a.name}</b><small><i style={{ background: a.color }} />{a.type.replace('_', ' ')}</small></div><span className="account" /><strong className={a.type === 'credit_card' ? 'bad' : 'good'}>{a.type === 'credit_card' ? '-' : ''}{dollar(bal)}</strong></div>; })}</div></Panel></div>;
 }
 
 function Rules({ rules, setRules, transactions, catColors = CAT_COLORS }) {
