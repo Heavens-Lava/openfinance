@@ -384,6 +384,7 @@
 
 .sankey {
   width: 100%;
+  max-width: 760px;
   min-width: 640px;
   height: auto;
   display: block;
