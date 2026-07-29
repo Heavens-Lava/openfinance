@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BIZ_CAT_COLORS, CAT_COLORS, MONTH_NAMES, dollar, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
+import { BIZ_CAT_COLORS, CAT_COLORS, MONTH_NAMES, dollar, dollarCompact, expenses, filterByDate, fmtDate, generateDemoData, income, loadFromFiles } from './lib/finance.js';
 import { createSyncedStore } from './lib/sync.js';
 import { loadStoredFiles, saveStoredFiles } from './lib/storage.js';
 
@@ -126,7 +126,7 @@ function Icon({ name }) {
 
 function Sidebar({ view, setView, status, mode, setMode, theme, setTheme }) {
   return <aside className="sidebar">
-    <div className="brand"><img className="brand-mark" src="/favicon.svg" alt="" /><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
+    <div className="brand"><img className="brand-mark" src={theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg'} alt="" /><div><b>OpenFinance</b><small>Private, local-first finance</small></div></div>
     <div className="mode-toggle">
       <button className={mode === 'personal' ? 'active' : ''} onClick={() => setMode('personal')} type="button">Personal</button>
       <button className={mode === 'business' ? 'active' : ''} onClick={() => setMode('business')} type="button">Business</button>
@@ -167,7 +167,14 @@ function TransactionsList({ rows, rentOverrides = {}, onToggleRent, customizeMod
 
 function Bars({ rows, color = 'var(--accent)', onPick }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
-  return <div className="bars">{rows.map((r) => <button key={r.label} onClick={() => onPick?.(r)} title={`${r.label}: ${dollar(r.value)}`}><strong>{dollar(r.value)}</strong><div><i style={{ height: `${Math.max(4, r.value / max * 100)}%`, background: color }} /></div><span>{r.label}</span></button>)}</div>;
+  return <div className="bars">{rows.map((r) => {
+    const isPeak = r.value > 0 && r.value === max;
+    return <button key={r.label} className={isPeak ? 'peak' : ''} onClick={() => onPick?.(r)} title={`${r.label}: ${dollar(r.value)}`}>
+      <strong>{dollarCompact(r.value)}</strong>
+      <div><i style={{ height: `${Math.max(4, r.value / max * 100)}%`, '--bar-color': color }} /></div>
+      <span>{r.label}</span>
+    </button>;
+  })}</div>;
 }
 
 function CategoryBars({ rows, catColors = CAT_COLORS }) {
@@ -586,7 +593,11 @@ export default function App() {
 
   const [theme, setThemeRaw] = useState(() => localStorage.getItem('mf_theme_v1') || 'warm');
   const setTheme = (next) => { setThemeRaw(next); localStorage.setItem('mf_theme_v1', next); };
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    const href = theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg';
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => { link.href = href; });
+  }, [theme]);
 
   const [mode, setModeRaw] = useState(() => localStorage.getItem('mf_mode_v1') || 'personal');
   const [bizAccounts, setBizAccounts] = useState(() => loadJson('mf_biz_accounts_v1', {}));

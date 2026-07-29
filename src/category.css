@@ -286,10 +286,6 @@
   justify-content: flex-end;
 }
 
-.bars button strong { opacity: 0; transition: opacity .16s ease; }
-.bars button:hover strong,
-.bars button:focus-visible strong { opacity: 1; }
-
 .range-controls {
   display: flex;
   gap: 10px;

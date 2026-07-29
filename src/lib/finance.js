@@ -114,6 +114,12 @@ export function dollar(n) {
   return `$${Math.abs(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
+export function dollarCompact(n) {
+  const v = Math.abs(n || 0);
+  if (v >= 1000) return `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+  return `$${Math.round(v)}`;
+}
+
 export function fmtDate(d) {
   if (!d) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
