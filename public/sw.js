@@ -1,4 +1,4 @@
-const CACHE = 'openfinance-v1';
+const CACHE = 'openfinance-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -14,19 +14,19 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first: always try to fetch the latest version. Only fall back to
+// the cache when offline, so updates (icon, CSS, JS, index.html) reach
+// returning visitors immediately instead of being stuck behind a stale
+// cache-first copy indefinitely.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then(
-      (cached) =>
-        cached ||
-        fetch(event.request)
-          .then((response) => {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-            return response;
-          })
-          .catch(() => cached)
-    )
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
