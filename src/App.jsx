@@ -34,6 +34,7 @@ const DEFAULT_GOALS = [
 ];
 
 const PUBLIC_VIEWS = new Set(['import', 'invoices', 'mileage', 'feedback']);
+const publicAsset = (filename) => `${import.meta.env.BASE_URL}${filename}`;
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 const cats = (rows) => {
@@ -155,7 +156,7 @@ function Icon({ name }) {
 
 function Sidebar({ view, setView, status, mode, setMode, theme, setTheme, onSignOut }) {
   return <aside className="sidebar">
-    <div className="brand"><img className="brand-mark" src={theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg'} alt="" /><div><b>{APP_NAME}</b><small>{APP_TAGLINE}</small></div></div>
+    <div className="brand"><img className="brand-mark" src={publicAsset(theme === 'classic' ? 'favicon-classic.svg' : 'favicon.svg')} alt="" /><div><b>{APP_NAME}</b><small>{APP_TAGLINE}</small></div></div>
     <div className="mode-toggle">
       <button className={mode === 'personal' ? 'active' : ''} onClick={() => setMode('personal')} type="button">Personal</button>
       <button className={mode === 'business' ? 'active' : ''} onClick={() => setMode('business')} type="button">Business</button>
@@ -823,7 +824,7 @@ export default function App() {
   useEffect(() => {
     document.title = APP_NAME;
     document.documentElement.dataset.theme = theme;
-    const href = theme === 'classic' ? '/favicon-classic.svg' : '/favicon.svg';
+    const href = publicAsset(theme === 'classic' ? 'favicon-classic.svg' : 'favicon.svg');
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => { link.href = href; });
   }, [theme]);
 
