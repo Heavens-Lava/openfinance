@@ -1,7 +1,7 @@
 {
   "name": "OpenFinance",
   "short_name": "OpenFinance",
-  "description": "A free, private finance tracker. Your data never leaves your browser.",
+  "description": "A free, private finance tracker that processes imported financial data on your device.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,10 +9,16 @@
   "theme_color": "#2f5138",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/icons/icon-192.webp",
+      "type": "image/webp",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -38,6 +38,14 @@
 [data-theme="classic"] .sidebar p{color:#94a3b8;font-style:normal}
 [data-theme="classic"] .sidebar nav button{color:#a8b5c8}
 [data-theme="classic"] .sidebar nav button.active{background:linear-gradient(135deg,rgba(37,99,235,.32),rgba(20,184,166,.22));color:#fff;font-weight:700}
+
+/* Native mobile shells may draw beneath a notch or system navigation area. */
+.app{
+  height:100dvh;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.sidebar nav{min-height:0;overflow-y:auto}
+@media(max-width:780px){.sidebar nav button{min-height:2.75rem}}
 [data-theme="classic"] .sidebar nav button:hover{background:rgba(255,255,255,.08);color:#f8fafc;transform:translateX(2px)}
 [data-theme="classic"] .theme-toggle{color:#a8b5c8;border-color:rgba(255,255,255,.16)}
 [data-theme="classic"] .theme-toggle:hover{background:rgba(255,255,255,.08);color:#f8fafc;border-color:rgba(255,255,255,.2)}

@@ -13,7 +13,7 @@
     <p class="eyebrow">Security</p><h1>A local-first model with clearly stated limits.</h1>
     <p class="lede">OpenFinance avoids bank connections and processes imported CSV data on the user's device. Local processing reduces exposure, but it does not make every device, browser, downloaded file, or software build automatically secure.</p>
     <h2>Security model</h2>
-    <ul><li>No bank credentials are requested.</li><li>No OpenFinance account is required for the public application.</li><li>CSV contents are parsed in the browser and persisted locally in IndexedDB.</li><li>The source code is publicly reviewable under the MIT license.</li></ul>
+    <ul><li>No bank credentials are requested.</li><li>No OpenFinance account is required for the public application.</li><li>CSV contents are parsed on the device and persisted locally in IndexedDB.</li><li>Android application backup is disabled for OpenFinance data.</li><li>The source code is publicly reviewable under the MIT license.</li></ul>
     <h2>User responsibilities</h2>
     <ul><li>Use a supported, updated browser and operating system.</li><li>Protect the device account and disk, especially on shared computers.</li><li>Do not upload CSV files received from untrusted sources.</li><li>Review parsed amounts and categories before relying on a report.</li><li>Keep independent copies of source statements; OpenFinance is not a backup service.</li></ul>
     <h2>Reporting a vulnerability</h2>

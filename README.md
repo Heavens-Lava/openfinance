@@ -1,6 +1,6 @@
 # OpenFinance by Jeffrey Macy
 
-Turn bank CSV exports into a private spending, cash-flow, and net-worth dashboard. OpenFinance does not connect to your bank or require an account; the public application processes imported financial data locally in your browser.
+Turn bank CSV exports into a private spending, cash-flow, and net-worth dashboard. OpenFinance does not connect to your bank or require an account; the public application processes imported financial data locally on your device.
 
 **[Open OpenFinance →](https://finance.jeffreymacy.com/)**
 **[Explore with synthetic demo data →](https://finance.jeffreymacy.com/?demo=1)**
@@ -64,9 +64,9 @@ Guides:
 - [Analyze an Apple Card CSV privately](https://finance.jeffreymacy.com/guides/apple-card-csv-spending-analyzer/)
 - [Private generic bank CSV analysis](https://finance.jeffreymacy.com/guides/private-bank-statement-analyzer/)
 
-## Browser and desktop options
+## Browser, mobile, and desktop options
 
-The browser application works on desktop and mobile without cloning the repository. On supported mobile browsers, use **Add to Home Screen** or **Install app** to install the progressive web app. CSV selection and PWA installation behavior varies by browser and operating system.
+The browser application works on desktop and mobile without cloning the repository. On supported mobile browsers, use **Add to Home Screen** or **Install app** to install the progressive web app. OpenFinance also includes native Capacitor projects for Android and iOS. Store-distributed builds are not yet published; until they are signed and reviewed, use the browser/PWA version on a phone.
 
 A Windows Electron build is also published on the [Releases page](https://github.com/Heavens-Lava/openfinance/releases/latest). The `.exe` installer works only on Windows; it does not install on iPhone, iPad, Android, macOS, or Linux. The installer is not currently code-signed, so Windows SmartScreen may identify it as an unknown publisher. Most people should begin with the browser version; technical users who choose the desktop build should verify that it came from this repository's official release page.
 
@@ -91,6 +91,18 @@ npm run dist:win
 ```
 
 The installer is written to `release/OpenFinance-Setup.exe`. A tag matching `v*.*.*` triggers the repository's release workflow.
+
+## Mobile development
+
+The Android and iOS apps use Capacitor and the same React application, parser, IndexedDB storage, and local-first privacy model as the browser build.
+
+```bash
+npm run mobile:sync
+npm run mobile:android
+npm run mobile:ios
+```
+
+`mobile:android` requires Android Studio, a compatible JDK, and the Android SDK. `mobile:ios` requires macOS and Xcode. Publishing requires a persistent Android signing key and Google Play Console account for Android, plus an Apple Developer account and App Store Connect record for iOS. Do not commit signing keys, provisioning profiles, or store credentials.
 
 ## Deployment variants
 
@@ -126,7 +138,8 @@ OpenFinance is an organizational and visualization tool. Its calculations, infer
 
 - React 18 and Vite
 - Papa Parse for client-side CSV parsing
-- IndexedDB and localStorage for browser persistence
+- IndexedDB and localStorage for on-device persistence
+- Capacitor for the Android and iOS projects
 - Electron for the optional Windows build
 - Pure CSS without an interface framework
 

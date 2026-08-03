@@ -20,4 +20,15 @@ node_modules/
 dist/
 dist-macyfinance/
 dist-app/
+dist-mobile/
 release/
+
+# Native mobile build products and local SDK settings
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+*.jks
+*.keystore
+ios/App/DerivedData/
+ios/App/Pods/

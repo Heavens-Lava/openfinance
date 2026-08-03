@@ -1,6 +1,6 @@
 {
   "name": "openfinance",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "private": false,
   "type": "module",
   "main": "electron/main.cjs",
@@ -10,10 +10,17 @@
     "test": "node --test",
     "preview": "vite preview",
     "build:app": "vite build --outDir dist-app --base ./",
+    "build:mobile": "vite build --outDir dist-mobile --base ./",
+    "mobile:sync": "npm run build:mobile && cap sync",
+    "mobile:android": "npm run mobile:sync && cap open android",
+    "mobile:ios": "npm run mobile:sync && cap open ios",
     "electron": "electron .",
     "dist:win": "npm run build:app && electron-builder --win --publish never"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@supabase/supabase-js": "^2.111.0",
     "@vitejs/plugin-react": "^4.3.4",
     "papaparse": "^5.4.1",
@@ -22,6 +29,7 @@
     "vite": "^6.0.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
     "postcss": "^8.5.25"

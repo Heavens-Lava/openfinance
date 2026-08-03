@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenFinance</string>
+    <string name="title_activity_main">OpenFinance</string>
+    <string name="package_name">com.jeffreymacy.openfinance</string>
+    <string name="custom_url_scheme">com.jeffreymacy.openfinance</string>
+</resources>

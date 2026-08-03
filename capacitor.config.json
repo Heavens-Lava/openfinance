@@ -1,0 +1,14 @@
+{
+  "appId": "com.jeffreymacy.openfinance",
+  "appName": "OpenFinance",
+  "webDir": "dist-mobile",
+  "backgroundColor": "#faf6ee",
+  "android": {
+    "backgroundColor": "#faf6ee",
+    "allowMixedContent": false
+  },
+  "ios": {
+    "backgroundColor": "#faf6ee",
+    "contentInset": "always"
+  }
+}

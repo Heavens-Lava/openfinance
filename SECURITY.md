@@ -13,7 +13,7 @@ Include the affected version, environment, reproduction steps, impact, and a saf
 ## Security boundaries
 
 - The public application does not request banking credentials or connect to bank APIs.
-- Imported CSV contents are stored locally in IndexedDB for restoration.
+- Imported CSV contents are stored locally in IndexedDB for restoration. Android application backup is disabled so this database is not copied into Android cloud backups by the app.
 - Local-first storage does not protect data from malware, another user of an unlocked device, browser extensions, compromised dependencies, or a compromised hosting/build pipeline.
 - Users should verify financial output against original records and maintain their own backups.
-- The unsigned Windows build may display an unknown-publisher warning. Verify releases through this repository.
+- The unsigned Windows build may display an unknown-publisher warning. Native mobile packages must be signed through the official Apple or Android release process before public distribution. Verify releases through this repository and the official store listing when available.
