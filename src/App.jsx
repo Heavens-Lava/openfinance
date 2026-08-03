@@ -829,7 +829,7 @@ export default function App() {
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => { link.href = href; });
   }, [theme]);
 
-  const [mode, setModeRaw] = useState(() => localStorage.getItem(getAppKey('mf_mode_v1')) || 'personal');
+  const [mode, setModeRaw] = useState('personal');
   const [bizAccounts, setBizAccounts] = useState(() => loadJson('mf_biz_accounts_v1', {}));
   const [invoices, setInvoices] = useState(() => { try { const saved = JSON.parse(localStorage.getItem(getAppKey('mf_invoices_v1')) || '[]'); return Array.isArray(saved) ? saved : []; } catch { return []; } });
   const [taxRate, setTaxRateRaw] = useState(() => Number(localStorage.getItem(getAppKey('mf_biz_tax_rate_v1'))) || 25);
@@ -838,7 +838,6 @@ export default function App() {
   const [quarterlyPaid, setQuarterlyPaid] = useState(() => { const saved = loadAppJson('mf_quarterly_paid_v1', {}); return saved && typeof saved === 'object' ? saved : {}; });
   const setMode = (next) => {
     setModeRaw(next);
-    saveAppJson('mf_mode_v1', next);
     const tag = VIEWS.find(([id]) => id === view)?.[3];
     if (tag && tag !== 'shared' && tag !== next) setView(next === 'business' ? 'business' : 'dashboard');
   };
