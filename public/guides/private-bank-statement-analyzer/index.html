@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Private Bank CSV and Statement Analyzer | OpenFinance</title>
+  <meta name="description" content="Analyze a bank CSV locally without connecting an account. Explore spending, categories, recurring transactions, savings, and cash flow in your browser.">
+  <meta name="robots" content="index, follow"><link rel="canonical" href="https://finance.jeffreymacy.com/guides/private-bank-statement-analyzer/">
+  <meta property="og:type" content="article"><meta property="og:title" content="A private bank CSV analyzer without account linking"><meta property="og:description" content="Import a compatible CSV and explore your money locally in the browser."><meta property="og:url" content="https://finance.jeffreymacy.com/guides/private-bank-statement-analyzer/">
+  <link rel="stylesheet" href="/site.css">
+</head><body>
+  <header class="site-header"><div><a href="/"><strong>OpenFinance by Jeffrey Macy</strong></a><a href="https://github.com/Heavens-Lava/openfinance">Open source</a></div></header>
+  <main>
+    <p class="eyebrow">Private CSV analysis</p><h1>Understand a bank export without handing over a bank connection.</h1>
+    <p class="lede">OpenFinance is a free, open-source finance dashboard for deliberate monthly reviews. Import a compatible bank CSV, inspect the result, and keep the financial contents on your device.</p>
+    <div class="actions"><a class="button" href="/?demo=1">Explore with synthetic data</a><a class="button secondary" href="/">Analyze a CSV</a></div>
+    <h2>How the workflow differs</h2>
+    <div class="grid"><div class="card"><h3>No account connection</h3><p>You choose and download the period to analyze. OpenFinance never asks for banking credentials.</p></div><div class="card"><h3>Local processing</h3><p>The browser parses and stores the imported CSV locally. Read the privacy page before using sensitive files.</p></div><div class="card"><h3>Manual verification</h3><p>You remain responsible for checking dates, signs, transfers, balances, duplicates, and categories against source records.</p></div></div>
+    <h2>Compatible generic CSV structure</h2><p>The fallback parser looks for a recognizable date column plus either an amount column or separate debit and credit columns. It can also use common description, category, and balance headings. Compatibility is not guaranteed merely because a file uses the <code>.csv</code> extension.</p>
+    <h2>What you can explore</h2><ul><li>Monthly and category spending</li><li>Searchable transactions and category corrections</li><li>Recurring-transaction candidates</li><li>Cash-flow visualization and savings rate</li><li>Net-worth history when compatible balance information exists</li><li>Personal spending goals and reusable categorization rules</li></ul>
+    <h2>Limitations</h2><p>OpenFinance does not provide live balances, bank reconciliation, guaranteed categorization, tax preparation, investment advice, or professional accounting. It is not appropriate as the sole record for decisions requiring audited or legally reliable financial information.</p>
+  </main><footer><a href="/">Open app</a><a href="/privacy/">Privacy</a><a href="/security/">Security</a></footer>
+</body></html>

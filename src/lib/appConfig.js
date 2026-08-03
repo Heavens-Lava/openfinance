@@ -13,7 +13,7 @@ export const IS_MACYFINANCE_VARIANT = APP_VARIANT === 'macyfinance';
 export const APP_NAME = IS_MACYFINANCE_VARIANT ? 'MacyFinance' : 'OpenFinance';
 export const APP_TAGLINE = IS_MACYFINANCE_VARIANT
   ? 'Private, synced finance'
-  : 'Private, local-first finance';
+  : 'Private bank CSV dashboard';
 export const AUTH_REQUIRED = IS_MACYFINANCE_VARIANT;
 export const MACY_LOGIN_EMAIL = import.meta.env.VITE_MACY_LOGIN_EMAIL || '';
 

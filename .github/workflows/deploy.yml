@@ -30,7 +30,7 @@ jobs:
       - name: Build
         env:
           VITE_APP_VARIANT: openfinance
-          VITE_CNAME: openfinance.jeffreymacy.com
+          VITE_CNAME: finance.jeffreymacy.com
         run: npm run build
 
       - uses: actions/upload-pages-artifact@v3

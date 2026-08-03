@@ -7,7 +7,7 @@ function githubPagesCname() {
   return {
     name: 'github-pages-cname',
     writeBundle(outputOptions) {
-      const cname = process.env.VITE_CNAME || 'openfinance.jeffreymacy.com';
+      const cname = process.env.VITE_CNAME || 'finance.jeffreymacy.com';
       const outputDir = outputOptions.dir || 'dist';
       fs.writeFileSync(path.resolve(outputDir, 'CNAME'), `${cname}\n`);
     },

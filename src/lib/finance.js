@@ -335,15 +335,14 @@ function readFileAsText(file) {
   });
 }
 
-// Primary entry point for the public app — accepts File objects from drag/drop or input
-export async function loadFromFiles(files) {
+// Testable parser entry point. Each item must contain a filename and CSV text.
+export function loadFromCsvTexts(files) {
   const balances = {}, balanceHistory = {}, accounts = [], allTxs = [];
   const failed = [];
   let i = 0;
   for (const file of files) {
     try {
-      const text = await readFileAsText(file);
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+      const parsed = Papa.parse(file.text, { header: true, skipEmptyLines: true });
       if (!parsed.data.length) { failed.push(file.name); continue; }
       const format = detectFormat(Object.keys(parsed.data[0]));
       if (format === 'unknown') { failed.push(file.name); continue; }
@@ -358,6 +357,15 @@ export async function loadFromFiles(files) {
   ACCOUNTS = accounts;
   const transactions = dedupeIds(allTxs.filter((t) => t.date).sort((a, b) => b.date - a.date));
   return { transactions, balances, balanceHistory, accounts, failed };
+}
+
+// Primary entry point for the public app — accepts File objects from drag/drop or input.
+export async function loadFromFiles(files) {
+  const contents = await Promise.all(files.map(async (file) => ({
+    name: file.name,
+    text: await readFileAsText(file),
+  })));
+  return loadFromCsvTexts(contents);
 }
 
 // Demo data — no files needed, showcases every feature

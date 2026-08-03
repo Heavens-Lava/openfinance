@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Privacy — OpenFinance by Jeffrey Macy</title>
+  <meta name="description" content="How OpenFinance processes and stores bank CSV data locally in your browser.">
+  <meta name="robots" content="index, follow"><link rel="canonical" href="https://finance.jeffreymacy.com/privacy/">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <header class="site-header"><div><a href="/"><strong>OpenFinance by Jeffrey Macy</strong></a><a href="https://github.com/Heavens-Lava/openfinance">Source code</a></div></header>
+  <main>
+    <p class="eyebrow">Privacy</p><h1>Your financial data stays under your control.</h1>
+    <p class="lede">OpenFinance is designed to analyze bank CSV exports locally in your browser without connecting to your bank or sending the contents of those files to an OpenFinance server.</p>
+    <h2>What happens to imported files</h2>
+    <p>The public OpenFinance application reads and parses selected CSV files on your device. It stores imported file contents in this browser's IndexedDB so you can restore them later. Category changes, rules, goals, and interface preferences may be stored in browser local storage.</p>
+    <h2>What OpenFinance does not collect</h2>
+    <ul><li>Bank usernames or passwords</li><li>Bank API credentials or connection tokens</li><li>The contents of imported CSV files on an OpenFinance server</li><li>Advertising profiles created from financial activity</li></ul>
+    <h2>Network requests</h2>
+    <p>The application itself is delivered over the internet and currently loads its interface files and fonts from hosting providers. These requests can expose ordinary connection information such as an IP address to those providers. Imported financial data is not included in those requests.</p>
+    <h2>Deleting local data</h2>
+    <p>Use <strong>Clear data</strong> inside OpenFinance to remove saved imports from the application's browser storage. Browser site-data controls can also remove IndexedDB, local storage, and cached application files for <code>finance.jeffreymacy.com</code>. Deleting local browser data cannot be undone.</p>
+    <h2>Desktop application</h2>
+    <p>The Windows application uses the same local-first interface. Files remain on the device unless you independently copy, back up, or share them.</p>
+    <h2>Scope and changes</h2>
+    <p>This policy describes the public OpenFinance deployment at <a href="https://finance.jeffreymacy.com/">finance.jeffreymacy.com</a>. Separately configured forks or private deployments may behave differently. Material changes will be recorded in the project repository.</p>
+    <p><strong>Effective:</strong> August 3, 2026. Questions or responsible reports may be submitted through <a href="https://github.com/Heavens-Lava/openfinance/issues">GitHub Issues</a>; security reports should follow the <a href="/security/">security page</a>.</p>
+  </main>
+  <footer><a href="/">Open app</a><a href="/security/">Security</a><a href="https://www.jeffreymacy.com/#/openfinance">About OpenFinance</a></footer>
+</body></html>

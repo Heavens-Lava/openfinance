@@ -711,12 +711,13 @@ function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingIm
     </Panel>}
     <div className={`dropzone ${dragging ? 'dragging' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); chooseFiles(e.dataTransfer.files); }} onClick={() => inputRef.current?.click()}>
       <Icon name="upload" />
-      <b>Drop bank CSV exports here</b>
-      <p>{AUTH_REQUIRED ? 'Import one or more CSVs to sync them to your private account.' : 'Any bank or credit union — drop one or more CSVs and everything stays in your browser.'}</p>
+      <b>Turn bank CSV exports into a private dashboard</b>
+      <p>{AUTH_REQUIRED ? 'Import one or more CSVs to sync them to your private account.' : 'Drop one or more compatible CSV files. Your financial data is processed and saved locally in this browser.'}</p>
       <button type="button" className="add-btn" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>Browse files</button>
       <input ref={inputRef} type="file" accept=".csv" multiple hidden onChange={(e) => { chooseFiles(e.target.files); e.target.value = ''; }} />
     </div>
-    <p className="privacy-banner">{AUTH_REQUIRED ? 'Everything is parsed in your browser. Your original CSVs are stored in your private Supabase bucket and are never public.' : 'Everything is parsed in your browser. No account connection, no server upload, no tracking.'}</p>
+    <p className="privacy-banner">{AUTH_REQUIRED ? 'Everything is parsed in your browser. Your original CSVs are stored in your private Supabase bucket and are never public.' : 'No bank connection or OpenFinance account is required. Imported financial data is not transmitted to an OpenFinance server.'}</p>
+    {!AUTH_REQUIRED && <p className="trust-links"><a href="/privacy/">How local storage and deletion work</a><span>·</span><a href="/security/">Security and accuracy limitations</a><span>·</span><a href="https://github.com/Heavens-Lava/openfinance" target="_blank" rel="noreferrer">Review the source</a></p>}
     <Panel title="Quick Start">
       <div className="empty-actions">
         <p style={{ color: hasData ? '#059669' : '#475569' }}>{status}</p>
@@ -728,7 +729,7 @@ function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingIm
       </div>
     </Panel>
     {hasData && <Panel title={`${data.accounts.length} Accounts · ${data.transactions.length.toLocaleString()} Transactions`}><div className="tx-list">{data.accounts.map((a) => <div className="tx" key={a.id}><span className="date">{a.bank}</span><div className="merchant"><b>{a.name}</b><small><i style={{ background: a.color }} />{a.type.replace('_', ' ')}</small></div><span className="account">{data.transactions.filter((t) => t.account === a.id).length.toLocaleString()} transactions</span><strong>{data.balances[a.id] !== undefined ? dollar(data.balances[a.id]) : '-'}</strong></div>)}</div></Panel>}
-    <Panel title="How to Download Your Bank CSV">
+    <Panel title="Common Bank Export Locations — Confirm Current Steps">
       <div className="bank-guides">{BANK_GUIDES.map((b) => <div className="bank-guide" key={b.name}><b>{b.name}</b><ol>{b.steps.map((s, i) => <li key={i}>{s}</li>)}</ol></div>)}</div>
     </Panel>
   </div>;
@@ -909,7 +910,12 @@ export default function App() {
     loadFiles(pendingImport.map((f) => new File([f.text], f.name, { type: 'text/csv' })));
   };
   const discardPendingImport = () => setPendingImport(null);
-  const loadDemo = () => applyLoaded(generateDemoData(), 'Demo data loaded');
+  const loadDemo = () => applyLoaded(generateDemoData(), 'Synthetic demo data loaded — no real financial information is shown');
+  useEffect(() => {
+    if (AUTH_REQUIRED || new URLSearchParams(window.location.search).get('demo') !== '1') return;
+    loadDemo();
+    window.history.replaceState({}, '', window.location.pathname || '/');
+  }, []);
   const clearData = async () => {
     setData({ transactions: [], balances: {}, balanceHistory: {}, accounts: [], failed: [] });
     setStatus('No data loaded yet. Import CSVs or load demo data to explore.');

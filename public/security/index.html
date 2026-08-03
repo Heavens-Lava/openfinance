@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Security — OpenFinance by Jeffrey Macy</title>
+  <meta name="description" content="OpenFinance security model, limitations, and vulnerability reporting guidance.">
+  <meta name="robots" content="index, follow"><link rel="canonical" href="https://finance.jeffreymacy.com/security/">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <header class="site-header"><div><a href="/"><strong>OpenFinance by Jeffrey Macy</strong></a><a href="https://github.com/Heavens-Lava/openfinance">Source code</a></div></header>
+  <main>
+    <p class="eyebrow">Security</p><h1>A local-first model with clearly stated limits.</h1>
+    <p class="lede">OpenFinance avoids bank connections and processes imported CSV data on the user's device. Local processing reduces exposure, but it does not make every device, browser, downloaded file, or software build automatically secure.</p>
+    <h2>Security model</h2>
+    <ul><li>No bank credentials are requested.</li><li>No OpenFinance account is required for the public application.</li><li>CSV contents are parsed in the browser and persisted locally in IndexedDB.</li><li>The source code is publicly reviewable under the MIT license.</li></ul>
+    <h2>User responsibilities</h2>
+    <ul><li>Use a supported, updated browser and operating system.</li><li>Protect the device account and disk, especially on shared computers.</li><li>Do not upload CSV files received from untrusted sources.</li><li>Review parsed amounts and categories before relying on a report.</li><li>Keep independent copies of source statements; OpenFinance is not a backup service.</li></ul>
+    <h2>Reporting a vulnerability</h2>
+    <p>Do not publish exploitable details in a public issue. Use GitHub's private vulnerability-reporting feature when available, or contact the repository owner through the contact information on <a href="https://www.jeffreymacy.com/">jeffreymacy.com</a>. Include the affected version, reproduction steps, impact, and a safe proof of concept. Never include real financial data.</p>
+    <h2>Financial accuracy disclaimer</h2>
+    <p>OpenFinance is an organizational and visualization tool, not accounting, tax, legal, investment, or financial advice. CSV formats and categorization rules can be incomplete or incorrect. Verify all calculations and exports against original records and consult a qualified professional for decisions where accuracy has legal, tax, or financial consequences.</p>
+  </main>
+  <footer><a href="/">Open app</a><a href="/privacy/">Privacy</a><a href="https://github.com/Heavens-Lava/openfinance">GitHub</a></footer>
+</body></html>

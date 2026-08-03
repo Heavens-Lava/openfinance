@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chase CSV Spending Analyzer — Private and Free | OpenFinance</title>
+  <meta name="description" content="Turn a Chase checking or credit-card CSV export into a private spending, category, recurring-payment, and cash-flow dashboard in your browser.">
+  <meta name="robots" content="index, follow"><link rel="canonical" href="https://finance.jeffreymacy.com/guides/chase-csv-spending-analyzer/">
+  <meta property="og:type" content="article"><meta property="og:title" content="Analyze a Chase CSV privately with OpenFinance"><meta property="og:description" content="No bank connection or account required. Your CSV is processed locally in your browser."><meta property="og:url" content="https://finance.jeffreymacy.com/guides/chase-csv-spending-analyzer/">
+  <link rel="stylesheet" href="/site.css">
+</head><body>
+  <header class="site-header"><div><a href="/"><strong>OpenFinance by Jeffrey Macy</strong></a><a href="https://github.com/Heavens-Lava/openfinance">Open source</a></div></header>
+  <main>
+    <p class="eyebrow">Chase CSV guide</p><h1>See where your Chase money went without connecting your bank.</h1>
+    <p class="lede">OpenFinance turns Chase checking and credit-card CSV exports into spending categories, recurring-payment clues, savings summaries, and a cash-flow dashboard. The CSV is processed locally on your device.</p>
+    <div class="actions"><a class="button" href="/?demo=1">Try synthetic demo data</a><a class="button secondary" href="/">Open OpenFinance</a></div>
+    <div class="notice"><strong>Privacy boundary:</strong> OpenFinance does not ask for a Chase username, password, or account connection. Imported files are saved in this browser's IndexedDB until you clear them. Read the <a href="/privacy/">complete privacy explanation</a>.</div>
+    <h2>How to use a Chase export</h2>
+    <ol class="steps"><li>Sign in to Chase using the official Chase website or application.</li><li>Open the relevant checking or credit-card account and use its download or account-activity export option.</li><li>Select CSV as the file format and an appropriate date range. Menu wording can change; verify that the downloaded file came directly from Chase.</li><li>Open OpenFinance and choose <strong>Import Data</strong>.</li><li>Drop in one or more CSV files. Confirm the account type, amounts, and date range before interpreting the report.</li></ol>
+    <h2>What is recognized</h2>
+    <div class="grid"><div class="card"><h3>Chase checking</h3><p>The parser recognizes exports containing fields such as Posting Date, Description, Amount, Type, and Balance.</p></div><div class="card"><h3>Chase credit cards</h3><p>The parser recognizes exports containing fields such as Transaction Date, Post Date, Description, Category, Type, and Amount.</p></div><div class="card"><h3>Multiple files</h3><p>Import several exports together to create one view. Review transfers and duplicate date ranges carefully.</p></div></div>
+    <h2>What to verify</h2><p>Bank formats can change. Confirm transaction signs, transfers, refunds, balances, categories, and duplicate date ranges against the original statement. OpenFinance is not affiliated with or endorsed by JPMorgan Chase &amp; Co.</p>
+    <h2>Why use CSV instead of bank sync?</h2><p>A CSV workflow gives you explicit control over which date range and accounts enter the tool. The trade-off is that you must export new activity and review it yourself. OpenFinance is best for people who prefer a deliberate monthly review over continuous account aggregation.</p>
+  </main><footer><a href="/">Open app</a><a href="/privacy/">Privacy</a><a href="/security/">Security</a></footer>
+</body></html>
