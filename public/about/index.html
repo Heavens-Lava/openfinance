@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>About OpenFinance — Private Bank CSV Dashboard</title>
+  <meta name="description" content="Explore OpenFinance features, privacy model, supported CSV structures, and browser and Windows options.">
+  <meta name="robots" content="index, follow"><link rel="canonical" href="https://finance.jeffreymacy.com/about/">
+  <meta property="og:type" content="website"><meta property="og:site_name" content="OpenFinance">
+  <meta property="og:url" content="https://finance.jeffreymacy.com/about/"><meta property="og:title" content="OpenFinance — Private Bank CSV Dashboard">
+  <meta property="og:description" content="Understand where your money went without connecting your bank. Free, open source, and local-first.">
+  <meta property="og:image" content="https://finance.jeffreymacy.com/dashboard.png">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="OpenFinance — Private Bank CSV Dashboard"><meta name="twitter:description" content="Understand where your money went without connecting your bank."><meta name="twitter:image" content="https://finance.jeffreymacy.com/dashboard.png">
+  <script type="application/ld+json">{
+    "@context":"https://schema.org","@type":"SoftwareApplication","name":"OpenFinance by Jeffrey Macy","applicationCategory":"FinanceApplication","operatingSystem":"Web, Windows","url":"https://finance.jeffreymacy.com/","codeRepository":"https://github.com/Heavens-Lava/openfinance","license":"https://opensource.org/license/mit","description":"A free, open-source bank CSV finance dashboard that processes imported financial data locally without connecting to a bank account.","author":{"@type":"Person","name":"Jeffrey Macy","url":"https://www.jeffreymacy.com/"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}
+  }</script>
+  <link rel="stylesheet" href="/site.css">
+  <style>.shot{display:block;width:100%;height:auto;margin:38px 0;border:1px solid #ccd3df;border-radius:16px;box-shadow:0 18px 55px #1720331c}.proof{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:32px 0}.proof h3{margin-top:0}.section{margin-top:46px}@media(max-width:700px){.proof{grid-template-columns:1fr}.shot{border-radius:10px}}</style>
+</head>
+<body>
+  <header class="site-header"><div><a href="/"><strong>OpenFinance by Jeffrey Macy</strong></a><a href="https://github.com/Heavens-Lava/openfinance">View source</a></div></header>
+  <main>
+    <p class="eyebrow">Product overview</p>
+    <h1>See where your money went without connecting your bank.</h1>
+    <p class="lede">Turn compatible bank CSV exports into a private spending, cash-flow, recurring-payment, and net-worth dashboard. No OpenFinance account is required, and imported financial data is processed locally on your device.</p>
+    <div class="actions"><a class="button" href="/?demo=1">Explore with synthetic data</a><a class="button secondary" href="/">Analyze a CSV</a></div>
+    <div class="proof"><div class="card"><h3>No bank connection</h3><p>You choose exactly which exported files and date ranges enter the tool.</p></div><div class="card"><h3>Local processing</h3><p>OpenFinance does not transmit imported financial contents to an OpenFinance server.</p></div><div class="card"><h3>Open source</h3><p>Inspect the implementation, parser, storage model, and changes publicly.</p></div></div>
+    <img class="shot" src="/dashboard.png" width="1440" height="900" alt="OpenFinance dashboard showing income, spending, monthly activity, and categories">
+    <p><small>Synthetic demonstration data—no real financial information is shown.</small></p>
+
+    <section class="section"><h2>A deliberate monthly review instead of continuous account access</h2><p class="lede">OpenFinance is for privacy-conscious people who already download transaction files or use spreadsheets and want a clearer view without granting ongoing access to bank accounts.</p><div class="grid"><div class="card"><h3>Import and inspect</h3><p>Load compatible CSV exports, search transactions, correct categories, and inspect the reporting period.</p></div><div class="card"><h3>Find the pattern</h3><p>Explore spending, categories, recurring-payment candidates, income, savings, cash flow, and compatible balance history.</p></div><div class="card"><h3>Keep useful rules</h3><p>Store category rules, goals, preferences, and imported files locally until you clear them.</p></div><div class="card"><h3>Verify important numbers</h3><p>Compare results with source records. OpenFinance is an organizational tool, not professional accounting or financial advice.</p></div></div></section>
+
+    <section class="section"><h2>Start without exposing real information</h2><p>The synthetic demo creates fictional accounts and transactions, so you can evaluate the dashboard before selecting a personal file.</p><div class="actions"><a class="button" href="/?demo=1">Open the synthetic demo</a><a class="button secondary" href="/privacy/">Read the privacy model</a><a class="button secondary" href="/security/">Security and limitations</a></div><div class="notice"><strong>Compatibility:</strong> explicit parser handling currently covers tested Chase checking, Chase credit card, Apple Card, Desert Financial, Elan/First National, and a generic date-plus-amount or debit/credit structure. Bank formats can change, and every result should be verified.</div></section>
+
+    <section class="section"><h2>Browser, mobile, and Windows options</h2><div class="grid"><div class="card"><h3>Phone, tablet, Mac, Windows, or Linux</h3><p>Use the browser application. On supported mobile browsers, choose <strong>Add to Home Screen</strong> or <strong>Install app</strong>. Browser support varies.</p><p><a href="/">Open the browser app</a></p></div><div class="card"><h3>Windows desktop application</h3><p>The downloadable <code>.exe</code> works only on Windows. It is not a mobile, macOS, or Linux installer and is not currently code-signed.</p><p><a href="https://github.com/Heavens-Lava/openfinance/releases/latest/download/OpenFinance-Setup.exe">Download for Windows</a></p></div></div></section>
+
+    <section class="section"><h2>Guides</h2><ul><li><a href="/guides/chase-csv-spending-analyzer/">Analyze a Chase CSV privately</a></li><li><a href="/guides/apple-card-csv-spending-analyzer/">Analyze an Apple Card CSV privately</a></li><li><a href="/guides/private-bank-statement-analyzer/">Understand generic CSV compatibility and limitations</a></li></ul></section>
+  </main>
+  <footer><a href="/">Open app</a><a href="/privacy/">Privacy</a><a href="/security/">Security</a><a href="https://www.jeffreymacy.com/openfinance/">Creator’s portfolio</a></footer>
+</body></html>
