@@ -96,6 +96,7 @@ jobs:
           cache: gradle
       - run: npm ci
       - run: npm run mobile:sync
+      - run: chmod +x android/gradlew
       - name: Test and compile Android
         working-directory: android
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
