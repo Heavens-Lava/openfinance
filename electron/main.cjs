@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -14,6 +14,19 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, '..', 'dist-app', 'index.html'));
+
+  const openExternal = (url) => {
+    if (/^(mailto:|https:)/i.test(url)) shell.openExternal(url);
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('file:')) return;
+    event.preventDefault();
+    openExternal(url);
+  });
 }
 
 app.whenReady().then(createWindow);

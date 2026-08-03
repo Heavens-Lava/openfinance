@@ -24,6 +24,7 @@ It is not a live balance service, bank-reconciliation system, tax-preparation pr
 - **Goals and Rules** — save spending targets and reusable merchant-category rules locally
 - **Business mode** — organize designated business accounts into P&L summaries, invoices, mileage, and estimated tax set-asides
 - **Affordability** — explore illustrative housing-payment scenarios
+- **Feedback** — prepare a structured question, bug report, or improvement idea for the creator without uploading application data
 
 ![OpenFinance cash-flow view](docs/cashflow.png)
 
@@ -38,6 +39,7 @@ For the public deployment at `finance.jeffreymacy.com`:
 - Imported financial data is not transmitted to an OpenFinance application server.
 - The application is delivered over the internet and loads interface resources from hosting providers. Ordinary requests for those resources may expose connection metadata such as an IP address; imported financial contents are not included.
 - Use **Clear data** in the application, or the browser's site-data controls, to remove locally stored OpenFinance data.
+- The **Feedback** page opens a draft in your email application. Only the feedback you enter, the app version, and basic device/browser information are placed in that draft; nothing is sent until you choose to send it.
 
 Read the complete [privacy explanation](https://finance.jeffreymacy.com/privacy/) and [security and accuracy limitations](https://finance.jeffreymacy.com/security/) before using sensitive files.
 

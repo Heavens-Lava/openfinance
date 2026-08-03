@@ -56,3 +56,26 @@
 [data-theme="classic"] .stat.green:before{background:#10b981}
 [data-theme="classic"] .stat.red:before{background:#ef4444}
 [data-theme="classic"] .stat.purple:before{background:#7c3aed}
+.feedback-intro{padding:1.5rem;border:1px solid var(--line);border-radius:.9rem;background:var(--card)}
+.sidebar nav{min-height:0;overflow-y:auto}
+.feedback-intro span{color:var(--accent);font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.feedback-intro h1{margin:.45rem 0;font-family:'Newsreader',Georgia,serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:500}
+.feedback-intro p{max-width:45rem;margin:0;color:var(--ink-soft)}
+.feedback-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(16rem,.8fr);gap:1rem}
+.feedback-form{display:grid;gap:1rem;padding:1.25rem;overflow:visible}
+.feedback-form label{display:grid;gap:.4rem;font-size:.84rem;font-weight:700}
+.feedback-form label>span{color:var(--ink-soft);font-size:.72rem;font-weight:500}
+.feedback-form select,.feedback-form input,.feedback-form textarea{width:100%;border:1px solid var(--line);border-radius:.55rem;background:var(--card);padding:.7rem;color:var(--ink);outline:none}
+.feedback-form textarea{min-height:10rem;resize:vertical;font:inherit;line-height:1.5}
+.feedback-form select:focus,.feedback-form input:focus,.feedback-form textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.feedback-form small{justify-self:end;color:var(--ink-soft);font-weight:400}
+.feedback-submit{justify-self:start;border:0;border-radius:.6rem;background:var(--accent);padding:.75rem 1rem;color:#fff;font-weight:800}
+.feedback-submit:hover{filter:brightness(1.08)}
+.feedback-status{margin:0;color:var(--accent);font-size:.85rem;font-weight:700}
+.feedback-notes{align-self:start;padding:1.25rem;border:1px solid var(--line);border-radius:.75rem;background:var(--accent-soft)}
+.feedback-notes h2{margin:0 0 .65rem;font-family:'Newsreader',Georgia,serif;font-size:1.2rem;font-weight:500}
+.feedback-notes p{color:var(--ink-soft);font-size:.85rem;line-height:1.55}
+.feedback-notes div{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+.feedback-notes a{color:var(--accent);font-size:.84rem;font-weight:700}
+[data-theme="classic"] .feedback-intro h1,[data-theme="classic"] .feedback-notes h2{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-weight:800}
+@media(max-width:780px){.feedback-layout{grid-template-columns:1fr}.feedback-form{padding:1rem}.feedback-submit{width:100%}}

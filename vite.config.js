@@ -3,6 +3,8 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const packageJson = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
 function githubPagesCname() {
   return {
     name: 'github-pages-cname',
@@ -17,4 +19,5 @@ function githubPagesCname() {
 export default defineConfig({
   plugins: [react(), githubPagesCname()],
   base: process.env.VITE_BASE || '/',
+  define: { __APP_VERSION__: JSON.stringify(packageJson.version) },
 });

@@ -22,6 +22,7 @@ const VIEWS = [
   ['mileage', 'Mileage', 'car', 'business'],
   ['rules', 'Rules', 'wand', 'shared'],
   ['import', 'Import Data', 'upload', 'shared'],
+  ['feedback', 'Feedback', 'message', 'shared'],
 ];
 
 const DEFAULT_GOALS = [
@@ -32,7 +33,7 @@ const DEFAULT_GOALS = [
   { id: 'subscriptions', label: 'Subscriptions', type: 'keyword', keywords: ['netflix', 'spotify', 'github', 'icloud'], target: 80, color: '#8b5cf6' },
 ];
 
-const PUBLIC_VIEWS = new Set(['import', 'invoices', 'mileage']);
+const PUBLIC_VIEWS = new Set(['import', 'invoices', 'mileage', 'feedback']);
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 const cats = (rows) => {
@@ -147,6 +148,7 @@ function Icon({ name }) {
     briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
     invoice: <><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v4h4" /><path d="M9 12h6M9 16h6M9 9h2" /></>,
     car: <><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11" /><rect x="3" y="11" width="18" height="6" rx="2" /><circle cx="7.5" cy="17.5" r="1.5" /><circle cx="16.5" cy="17.5" r="1.5" /></>,
+    message: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /><path d="M8 9h8M8 13h5" /></>,
   };
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -171,6 +173,73 @@ function Stat({ label, value, note, tone = 'blue', onClick }) {
 
 function Panel({ title, action, children }) {
   return <section className="panel"><header><h2>{title}</h2>{action}</header>{children}</section>;
+}
+
+function Feedback() {
+  const [type, setType] = useState('General feedback');
+  const [rating, setRating] = useState('');
+  const [replyEmail, setReplyEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [opened, setOpened] = useState(false);
+  const environment = `${navigator.platform || 'Unknown platform'} | ${navigator.userAgent}`;
+
+  const sendFeedback = (event) => {
+    event.preventDefault();
+    const subject = `OpenFinance ${type}`;
+    const body = [
+      `Feedback type: ${type}`,
+      `Rating: ${rating || 'Not provided'}`,
+      `Reply email: ${replyEmail || 'Not provided'}`,
+      '',
+      'Message:',
+      message,
+      '',
+      `OpenFinance version: ${__APP_VERSION__}`,
+      `Device/browser: ${environment}`,
+      '',
+      'No financial files or application data are attached.',
+    ].join('\n');
+    setOpened(true);
+    window.location.href = `mailto:macy.jeffreyj@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  return <div className="view feedback-view">
+    <section className="feedback-intro">
+      <span>Talk to the creator</span>
+      <h1>Help improve OpenFinance</h1>
+      <p>Ask a question, report a problem, or recommend what Jeffrey should improve next. Your experience can directly shape future releases.</p>
+    </section>
+    <div className="feedback-layout">
+      <form className="feedback-form panel" onSubmit={sendFeedback}>
+        <label>What would you like to share?
+          <select value={type} onChange={(event) => setType(event.target.value)}>
+            <option>General feedback</option><option>Question</option><option>Bug report</option><option>Feature request</option>
+          </select>
+        </label>
+        <label>How do you feel about OpenFinance? <span>Optional</span>
+          <select value={rating} onChange={(event) => setRating(event.target.value)}>
+            <option value="">Choose a rating</option><option>Love it</option><option>Like it</option><option>Neutral</option><option>Frustrated</option>
+          </select>
+        </label>
+        <label>Your message
+          <textarea required maxLength="2500" rows="8" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What were you trying to do? What worked well, what happened, or what would make OpenFinance more useful?" />
+          <small>{message.length.toLocaleString()} / 2,500 characters</small>
+        </label>
+        <label>Your email <span>Optional, for a reply</span>
+          <input type="email" autoComplete="email" value={replyEmail} onChange={(event) => setReplyEmail(event.target.value)} placeholder="you@example.com" />
+        </label>
+        <button className="feedback-submit" type="submit">Prepare email to Jeffrey</button>
+        {opened ? <p className="feedback-status" role="status">Your email application should now be open. Review the message there, then choose Send.</p> : null}
+      </form>
+      <aside className="feedback-notes">
+        <h2>Your privacy matters</h2>
+        <p>This form does not upload anything. Choosing <strong>Prepare email</strong> opens your email application with the answers, app version, and basic device/browser information filled in.</p>
+        <p><strong>Never include account numbers, balances, transaction details, bank files, passwords, or other sensitive financial information.</strong></p>
+        <p>No imported financial files or OpenFinance data are attached.</p>
+        <div><a href="mailto:macy.jeffreyj@gmail.com?subject=OpenFinance%20question">Email directly</a><a href="https://github.com/Heavens-Lava/openfinance/issues" target="_blank" rel="noreferrer">Open a GitHub issue</a><a href="https://finance.jeffreymacy.com/privacy/" target="_blank" rel="noreferrer">Read the privacy policy</a></div>
+      </aside>
+    </div>
+  </div>;
 }
 
 function TransactionsList({ rows, rentOverrides = {}, onToggleRent, customizeMode = false, onCategorize, catColors = CAT_COLORS }) {
@@ -997,5 +1066,5 @@ export default function App() {
   const activeView = hasData || PUBLIC_VIEWS.has(view) ? view : 'import';
   if (!authReady) return <div className="auth-shell"><div className="auth-card"><h1>{APP_NAME}</h1><p>Checking your session…</p></div></div>;
   if (AUTH_REQUIRED && !isAuthenticated) return <AuthScreen onUnlock={unlock} error={authError} loading={authLoading} />;
-  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} mode={mode} setMode={setMode} theme={theme} setTheme={setTheme} onSignOut={AUTH_REQUIRED ? handleSignOut : null} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>{AUTH_REQUIRED ? 'Private by design - encrypted in transit and synced to your account' : 'Private by design - all analysis happens in this browser'}</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content" key={activeView}>{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} mode={mode} />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={personalTransactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={mode === 'business' ? data.accounts.filter((a) => bizAccounts[a.id]) : data.accounts.filter((a) => !bizAccounts[a.id])} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} catColors={modeCatColors} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{activeView === 'accounts' && <Accounts rows={filteredAllAccounts} balances={data.balances} accounts={data.accounts} bizAccounts={bizAccounts} onToggleBiz={toggleBizAccount} />}{hasData && activeView === 'income' && <Income all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={personalTransactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'business' && <Business rows={filtered} all={businessTransactions} filter={filter} taxRate={taxRate} setTaxRate={setTaxRate} setView={setView} setTxFilters={setTxFilters} hasBizAccounts={hasBizAccounts} onCategorize={categorize} quarterlyPaid={quarterlyPaid} toggleQuarterlyPaid={toggleQuarterlyPaid} />}{activeView === 'invoices' && <Invoices invoices={invoices} addInvoice={addInvoice} updateInvoice={updateInvoice} deleteInvoice={deleteInvoice} />}{activeView === 'mileage' && <Mileage mileageLog={mileageLog} mileageRate={mileageRate} setMileageRate={setMileageRate} addMileage={addMileage} deleteMileage={deleteMileage} />}{activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} catColors={modeCatColors} />}</div></main></div>;
+  return <div className="app"><Sidebar view={activeView} setView={(next) => setView(hasData || PUBLIC_VIEWS.has(next) ? next : 'import')} status={status} mode={mode} setMode={setMode} theme={theme} setTheme={setTheme} onSignOut={AUTH_REQUIRED ? handleSignOut : null} /><main><header className="top"><div><h1>{VIEWS.find(([id]) => id === activeView)?.[1]}</h1><p>{AUTH_REQUIRED ? 'Private by design - encrypted in transit and synced to your account' : 'Private by design - all analysis happens in this browser'}</p></div>{hasData && <div className="range-controls"><select value={custom ? 'custom' : filter} onChange={(e) => { if (e.target.value !== 'custom') setFilter(e.target.value); }}><option value="all">All Time</option><option value="this-month">This Month</option><option value="last-month">Last Month</option><option value="last-3">Last 3 Months</option><option value="last-6">Last 6 Months</option><option value="ytd">Year to Date</option>{custom && <option value="custom">{labelFor(filter)}</option>}<optgroup label="By Month">{monthList.map((m) => <option key={m} value={m}>{labelFor(m)}</option>)}</optgroup></select><label className="date-input">From <input type="date" value={custom?.[1] || ''} onChange={(e) => setCustom(e.target.value, custom?.[2] || '')} /></label><label className="date-input">To <input type="date" value={custom?.[2] || ''} onChange={(e) => setCustom(custom?.[1] || '', e.target.value)} /></label></div>}</header><div className="content" key={activeView}>{activeView === 'import' && <ImportView data={data} status={status} onFiles={loadFiles} onDemo={loadDemo} onClear={clearData} pendingImport={pendingImport} onRestore={restoreImport} onDiscardPending={discardPendingImport} mode={mode} />}{activeView === 'feedback' && <Feedback />}{activeView === 'affordability' && <Affordability />}{hasData && activeView === 'dashboard' && <Dashboard all={personalTransactions} rows={filtered} balances={data.balances} accounts={data.accounts} setView={setView} setFilter={setFilter} setTxFilters={setTxFilters} filter={filter} />}{hasData && activeView === 'transactions' && <Transactions rows={filtered} filters={txFilters} setFilters={setTxFilters} accounts={mode === 'business' ? data.accounts.filter((a) => bizAccounts[a.id]) : data.accounts.filter((a) => !bizAccounts[a.id])} rentOverrides={rentOverrides} onToggleRent={toggleRentOverride} onCategorize={categorize} catColors={modeCatColors} />}{hasData && activeView === 'categories' && <Categories rows={filtered} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'recurring' && <Recurring all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'cashflow' && <CashFlow rows={filtered} filter={filter} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'networth' && <NetWorth history={data.balanceHistory} accounts={data.accounts} />}{activeView === 'accounts' && <Accounts rows={filteredAllAccounts} balances={data.balances} accounts={data.accounts} bizAccounts={bizAccounts} onToggleBiz={toggleBizAccount} />}{hasData && activeView === 'income' && <Income all={personalTransactions} setView={setView} setTxFilters={setTxFilters} />}{hasData && activeView === 'goals' && <Goals all={personalTransactions} rentOverrides={rentOverrides} setView={setView} setTxFilters={setTxFilters} setFilter={setFilter} />}{hasData && activeView === 'business' && <Business rows={filtered} all={businessTransactions} filter={filter} taxRate={taxRate} setTaxRate={setTaxRate} setView={setView} setTxFilters={setTxFilters} hasBizAccounts={hasBizAccounts} onCategorize={categorize} quarterlyPaid={quarterlyPaid} toggleQuarterlyPaid={toggleQuarterlyPaid} />}{activeView === 'invoices' && <Invoices invoices={invoices} addInvoice={addInvoice} updateInvoice={updateInvoice} deleteInvoice={deleteInvoice} />}{activeView === 'mileage' && <Mileage mileageLog={mileageLog} mileageRate={mileageRate} setMileageRate={setMileageRate} addMileage={addMileage} deleteMileage={deleteMileage} />}{activeView === 'rules' && <Rules rules={rules} setRules={setRules} transactions={transactions} catColors={modeCatColors} />}</div></main></div>;
 }
