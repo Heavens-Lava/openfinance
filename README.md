@@ -64,9 +64,9 @@ Guides:
 
 ## Browser and desktop options
 
-The browser application works without cloning or installing the repository and can be installed as a progressive web app where the browser supports it.
+The browser application works on desktop and mobile without cloning the repository. On supported mobile browsers, use **Add to Home Screen** or **Install app** to install the progressive web app. CSV selection and PWA installation behavior varies by browser and operating system.
 
-A Windows Electron build is also published on the [Releases page](https://github.com/Heavens-Lava/openfinance/releases/latest). The installer is not currently code-signed, so Windows SmartScreen may identify it as an unknown publisher. Most people should begin with the browser version; technical users who choose the desktop build should verify that it came from this repository's official release page.
+A Windows Electron build is also published on the [Releases page](https://github.com/Heavens-Lava/openfinance/releases/latest). The `.exe` installer works only on Windows; it does not install on iPhone, iPad, Android, macOS, or Linux. The installer is not currently code-signed, so Windows SmartScreen may identify it as an unknown publisher. Most people should begin with the browser version; technical users who choose the desktop build should verify that it came from this repository's official release page.
 
 ## Run locally
 

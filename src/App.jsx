@@ -717,7 +717,7 @@ function ImportView({ data, status, onFiles, onDemo, onLocal, onClear, pendingIm
       <input ref={inputRef} type="file" accept=".csv" multiple hidden onChange={(e) => { chooseFiles(e.target.files); e.target.value = ''; }} />
     </div>
     <p className="privacy-banner">{AUTH_REQUIRED ? 'Everything is parsed in your browser. Your original CSVs are stored in your private Supabase bucket and are never public.' : 'No bank connection or OpenFinance account is required. Imported financial data is not transmitted to an OpenFinance server.'}</p>
-    {!AUTH_REQUIRED && <p className="trust-links"><a href="/privacy/">How local storage and deletion work</a><span>·</span><a href="/security/">Security and accuracy limitations</a><span>·</span><a href="https://github.com/Heavens-Lava/openfinance" target="_blank" rel="noreferrer">Review the source</a></p>}
+    {!AUTH_REQUIRED && <p className="trust-links"><a href="https://finance.jeffreymacy.com/privacy/" target="_blank" rel="noreferrer">How local storage and deletion work</a><span>·</span><a href="https://finance.jeffreymacy.com/security/" target="_blank" rel="noreferrer">Security and accuracy limitations</a><span>·</span><a href="https://github.com/Heavens-Lava/openfinance" target="_blank" rel="noreferrer">Review the source</a></p>}
     <Panel title="Quick Start">
       <div className="empty-actions">
         <p style={{ color: hasData ? '#059669' : '#475569' }}>{status}</p>
