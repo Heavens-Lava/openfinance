@@ -19,6 +19,8 @@
 .tx:hover{transform:translateX(2px)}
 .theme-toggle{margin:0 .9rem .6rem;padding:.55rem .7rem;border:1px solid var(--line);border-radius:.55rem;background:transparent;color:var(--ink-soft);font-size:.75rem;text-align:left}
 .theme-toggle:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.sidebar-feedback{display:flex;align-items:center;gap:.55rem}
+.sidebar-feedback.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);font-weight:700}
 .auth-shell{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,var(--accent-soft),transparent)}
 .auth-card{width:min(24rem,100%);padding:2rem;border:1px solid var(--line);border-radius:1.25rem;background:var(--card);box-shadow:0 24px 60px rgba(15,23,42,.08)}
 .auth-card h1{margin:0 0 .5rem;font-size:1.45rem;font-family:'Newsreader',Georgia,serif}
@@ -39,6 +41,7 @@
 [data-theme="classic"] .sidebar nav button:hover{background:rgba(255,255,255,.08);color:#f8fafc;transform:translateX(2px)}
 [data-theme="classic"] .theme-toggle{color:#a8b5c8;border-color:rgba(255,255,255,.16)}
 [data-theme="classic"] .theme-toggle:hover{background:rgba(255,255,255,.08);color:#f8fafc;border-color:rgba(255,255,255,.2)}
+[data-theme="classic"] .sidebar-feedback.active{background:linear-gradient(135deg,rgba(37,99,235,.32),rgba(20,184,166,.22));color:#fff;border-color:rgba(255,255,255,.2)}
 [data-theme="classic"] .hero{background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(30,64,175,.92) 52%,rgba(13,148,136,.88));border:0;box-shadow:0 24px 55px rgba(15,23,42,.16);color:#fff}
 [data-theme="classic"] .hero:before{display:none}
 [data-theme="classic"] .hero span{color:#bfdbfe}
@@ -78,4 +81,4 @@
 .feedback-notes div{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
 .feedback-notes a{color:var(--accent);font-size:.84rem;font-weight:700}
 [data-theme="classic"] .feedback-intro h1,[data-theme="classic"] .feedback-notes h2{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-weight:800}
-@media(max-width:780px){.feedback-layout{grid-template-columns:1fr}.feedback-form{padding:1rem}.feedback-submit{width:100%}}
+@media(max-width:780px){.feedback-layout{grid-template-columns:1fr}.feedback-form{padding:1rem}.feedback-submit{width:100%}.sidebar-feedback{justify-content:center}.sidebar-feedback span{display:none}}

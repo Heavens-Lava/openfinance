@@ -161,8 +161,9 @@ function Sidebar({ view, setView, status, mode, setMode, theme, setTheme, onSign
       <button className={mode === 'personal' ? 'active' : ''} onClick={() => setMode('personal')} type="button">Personal</button>
       <button className={mode === 'business' ? 'active' : ''} onClick={() => setMode('business')} type="button">Business</button>
     </div>
-    <nav>{VIEWS.filter(([, , , tag]) => tag === 'shared' || tag === mode).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
+    <nav>{VIEWS.filter(([id, , , tag]) => id !== 'feedback' && (tag === 'shared' || tag === mode)).map(([id, label, icon]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => setView(id)}><Icon name={icon} /><span>{label}</span></button>)}</nav>
     <button type="button" className="theme-toggle" onClick={() => setTheme(theme === 'warm' ? 'classic' : 'warm')}>{theme === 'warm' ? 'Switch to classic theme' : 'Switch to warm theme'}</button>
+    <button type="button" className={`theme-toggle sidebar-feedback${view === 'feedback' ? ' active' : ''}`} onClick={() => setView('feedback')}><Icon name="message" /><span>Feedback</span></button>
     {onSignOut ? <button type="button" className="theme-toggle" onClick={onSignOut}>Sign out</button> : null}
     <p>{status}</p>
   </aside>;
